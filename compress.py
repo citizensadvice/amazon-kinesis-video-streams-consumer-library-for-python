@@ -16,7 +16,7 @@ num_channels = 1
 from_client = bytes()
 to_client = bytes()
 for working_dir, nest_dirs, files in audio_dir.walk():
-    for file in files:
+    for file in sorted(files):
         with wave.open(str(working_dir / file), mode='r') as f:
             audio_bytes = f.readframes(f.getnframes())
             frame_rate = f.getframerate()
