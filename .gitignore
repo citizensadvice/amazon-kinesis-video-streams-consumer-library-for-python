@@ -1,6 +1,8 @@
 # local save stuff
 audio_fragments
 logging_output
+compressions
+old_audio_fragments
 
 
 # Byte-compiled / optimized / DLL files
