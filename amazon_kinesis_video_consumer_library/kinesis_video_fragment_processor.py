@@ -16,7 +16,6 @@ __author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
 import io
 import logging
-import imageio.v3 as iio
 import amazon_kinesis_video_consumer_library.ebmlite.util as emblite_utils
 import wave
 import amazon_kinesis_video_consumer_library.ebmlite.decoding as ebmlite_decoding
@@ -31,8 +30,10 @@ class KvsFragementProcessor():
 
     def get_fragment_tags(self, fragment_dom):
         '''
-        Parses a MKV Fragment Doc (of type ebmlite.core.MatroskaDocument) that is returned to the provided callback 
-        from get_streaming_fragments() in this class and returns a dict of the SimpleTag elements found. 
+        Parses a MKV Fragment Doc (of type
+        ebmlite.core.MatroskaDocument) that is returned to the provided
+        callback from get_streaming_fragments() in this class and
+        returns a dict of the SimpleTag elements found. 
 
         ### Parameters:
 
@@ -104,99 +105,6 @@ class KvsFragementProcessor():
         emblite_utils.pprint(fragment_dom, out=pretty_print_str)
         return pretty_print_str.getvalue()
 
-    def save_fragment_as_local_mkv(self, fragment_bytes, file_name_path):
-        '''
-        Save the provided fragment_bytes as stand-alone MKV file on local disk.
-        fragment_bytes as it arrives in is already a well formatted MKV fragment 
-        so can just write the bytes straight to disk and it will be a playable MKV file. 
-
-        ### Parameters:
-
-        fragment_bytes: bytearray
-            A ByteArray with raw bytes from exactly one fragment.
-
-        file_name_path: Str
-            Local file path / name to save the MKV file to. 
-
-        '''
-
-        f = open(file_name_path, "wb")
-        f.write(fragment_bytes)      
-        f.close()
-
-    def get_frames_as_ndarray(self, fragment_bytes, one_in_frames_ratio):
-        '''
-        Parses fragment_bytes and returns a ratio of available frames in the MKV fragment as
-        a list of numpy.ndarray's.
-
-        e.g: Setting one_in_frames_ratio = 5 will return every 5th frame found in the fragment.
-        (Starting with the first)
-
-        To return all available frames just set one_in_frames_ratio = 1
-
-        ### Parameters:
-
-            fragment_bytes: bytearray
-                A ByteArray with raw bytes from exactly one fragment.
-
-            one_in_frames_ratio: Str
-                Ratio of the available frames in the fragment to process and return.
-
-        ### Return:
-
-            frames: List<numpy.ndarray>
-            A list of frames extracted from the fragment as numpy.ndarray
-        
-        '''
-
-        # Parse all frames in the fragment to frames list
-        frames = iio.imread(io.BytesIO(fragment_bytes), plugin="pyav", index=...)
-
-        # Store and return frames in frame ratio of total available 
-        ret_frames = []
-        for i in range(0, len(frames), one_in_frames_ratio):
-            ret_frames.append(frames[i])
-
-        return ret_frames
-
-    def save_frames_as_jpeg(self, fragment_bytes, one_in_frames_ratio, jpg_file_base_path):
-        '''
-        Parses fragment_bytes and saves a ratio of available frames in the MKV fragment as
-        JPEGs on the local disk.
-
-        e.g: Setting one_in_frames_ratio = 5 will return every 5th frame found in the fragment 
-        (starting with the first).
-       
-        To return all available frames just set one_in_frames_ratio = 1
-
-        ### Parameters:
-
-        fragment_bytes: ByteArray
-            A ByteArray with raw bytes from exactly one fragment.
-
-        one_in_frames_ratio: Str
-            Ratio of the available frames in the fragment to process and save.
-
-        ### Return
-        jpeg_paths : List<Str>
-            A list of file paths to the saved JPEN files. 
-        
-        '''
-
-        # Parse all frames in the fragment to frames list
-        ndarray_frames = self.get_frames_as_ndarray(fragment_bytes, one_in_frames_ratio)
-
-        # Write frames to disk as JPEG images
-        jpeg_paths = []
-        for i in range(len(ndarray_frames)):
-            frame = ndarray_frames[i]
-            image_file_path = '{}-{}.jpg'.format(jpg_file_base_path, i)
-            iio.imwrite(image_file_path, frame, format=None)
-            jpeg_paths.append(image_file_path)
-        
-        return jpeg_paths
-    
-
     def get_raw_audio_track_from_simple_block(self, mkv_element):
         '''
         This function gets the raw audio track from a SimpleBlock element
@@ -246,25 +154,26 @@ class KvsFragementProcessor():
                 '''
                 track_nr =  ord(ch) & 127
 
-            return track_nr                    
+            return track_nr
         return None
-
 
     def get_track_bytearray(self, mkv_dom, track_nr):
         '''
         This function extracts the raw audio track from a Matroska
-        file from Amazon Connect and returns it as a bytearray. It iterates through
-        the SimpleBlock elements within each Cluster, alternating which
-        track it appends based on the track number.
+        file from Amazon Connect and returns it as a bytearray. It
+        iterates through the SimpleBlock elements within each Cluster,
+        alternating which track it appends based on the track number.
 
         ### Parameters:        
             mkv_dom: ebmlite.core.Document <ebmlite.core.MatroskaDocument>
-                    The DOM like structure describing the fragment parsed by EBMLite.
+                    The DOM like structure describing the fragment
+                    parsed by EBMLite.
 
             track_nr: The track number (1 or 2) to extract
 
         ### Return:
-            A bytearray containing the raw audio data of the specified track
+            A bytearray containing the raw audio data of the specified
+            track
 
         '''
 
