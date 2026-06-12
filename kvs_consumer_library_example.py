@@ -11,22 +11,34 @@ __copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserv
 __author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
 import os
-import sys
 import time
 import boto3
-import logging
+from sys import argv
+from pathlib import Path
+
 from amazon_kinesis_video_consumer_library.kinesis_video_streams_parser import KvsConsumerLibrary
 from amazon_kinesis_video_consumer_library.kinesis_video_fragment_processor import KvsFragementProcessor
 
-# Config the logger.
-log = logging.getLogger(__name__)
-logging.basicConfig(format="[%(name)s.%(funcName)s():%(lineno)d] - [%(levelname)s] - %(message)s", 
-                    stream=sys.stdout, 
-                    level=logging.INFO)
+from custom_logging import get_full_logger
+
+
+log = get_full_logger(__name__)
+# Ensure directory for audio fragments
+root = Path(__file__).parent
+audio_path = root / 'audio_fragments'
+if not audio_path.is_dir():
+    if audio_path.exists():
+        audio_path.unlink()
+    audio_path.mkdir()
+
 
 # Update the desired region and KVS stream name.
-REGION='[ENTER_REGION]'
-KVS_STREAM01_NAME = '[ENTER_KVS_STREAM_NAME]'   # Stream must be in specified region
+REGION='eu-west-2'
+try:
+    KVS_STREAM01_NAME = argv[1]   # Stream must be in specified region
+except IndexError:
+    log.error("No stream name specified!", exc_info=True)
+    raise
 
 
 class KvsPythonConsumerExample:
@@ -186,66 +198,19 @@ class KvsPythonConsumerExample:
             pretty_frag_dom = self.kvs_fragment_processor.get_fragement_dom_pretty_string(fragment_dom)
             log.info(pretty_frag_dom)
 
-            ###########################################
-            # 3) Write the Fragment to disk as standalone MKV file
-            ###########################################
-            save_dir = 'ENTER_DIRECTORY_PATH_TO_SAVE_FRAGEMENTS'
-            frag_file_name = self.last_good_fragment_tags['AWS_KINESISVIDEO_FRAGMENT_NUMBER'] + '.mkv' # Update as needed
-            frag_file_path = os.path.join(save_dir, frag_file_name)
-            # Uncomment below to enable this function - will take a significant amount of disk space if left running unchecked:
-            #log.info('')
-            #log.info(f'####### Saving fragment to local disk at: {frag_file_path}')
-            #self.kvs_fragment_processor.save_fragment_as_local_mkv(fragment_bytes, frag_file_path)
-
-            ###########################################
-            # 4) Extract Frames from Fragment as ndarrays:
-            ###########################################
-            # Get a ratio of available frames in the fragment as a list of numpy.ndarray's
-            # Here we just log the shape of each image array but ndarray lends itself to many powerful 
-            # data science, computer vision and video analytic functions in particular.
-            one_in_frames_ratio = 5
-            log.info('')
-            log.info(f'#######  Reading 1 in {one_in_frames_ratio} Frames from fragment as ndarray:')
-            ndarray_frames = self.kvs_fragment_processor.get_frames_as_ndarray(fragment_bytes, one_in_frames_ratio)
-            for i in range(len(ndarray_frames)):
-                ndarray_frame = ndarray_frames[i]
-                log.info(f'Frame-{i} Shape: {ndarray_frame.shape}')
             
             ###########################################
-            # 5) Save Frames from Fragment to local disk as JPGs
+            # 3) Save Amazon Connect Frames from Fragment to local disk as WAVs
             ###########################################
-            # Get a ratio of available frames in the fragment and save as JPGs to local disk.
-            # JPEGs could also be sent to other AWS services such as Amazon Rekognition and Amazon Sagemaker
-            # for computer vision inference. 
-            # Alternatively, these could be sent to Amazon S3 and used to create a timelapse set of images or 
-            # further processed into timed thumbnails for the KVS media stream.
-            one_in_frames_ratio = 5
-            save_dir = 'ENTER_DIRECTORY_PATH_TO_SAVE_JPEG_FRAMES'
-            jpg_file_base_name = self.last_good_fragment_tags['AWS_KINESISVIDEO_FRAGMENT_NUMBER']
-            jpg_file_base_path = os.path.join(save_dir, jpg_file_base_name)
-            
-            # Uncomment below to enable this function - will take a significant amount of disk space if left running unchecked:
-            #log.info('')
-            #log.info(f'####### Saving 1 in {one_in_frames_ratio} Frames from fragment as JPEG to base path: {jpg_file_base_path}')
-            #jpeg_paths = self.kvs_fragment_processor.save_frames_as_jpeg(fragment_bytes, one_in_frames_ratio, jpg_file_base_path)
-            #for i in range(len(jpeg_paths)):
-            #    jpeg_path = jpeg_paths[i]
-            #    print(f'Saved JPEG-{i} Path: {jpeg_path}')
-
-            
-            ###########################################
-            # 6) Save Amazon Connect Frames from Fragment to local disk as WAVs
-            ###########################################
-            save_dir = 'ENTER_DIRECTORY_PATH_TO_SAVE_WAV_FRAMES'
+            save_dir = str(audio_path)
             wav_file_base_name = self.last_good_fragment_tags['AWS_KINESISVIDEO_FRAGMENT_NUMBER']
             wav_file_base_path = os.path.join(save_dir, wav_file_base_name)
-            
-            # Uncomment below to enable this function - will take a significant amount of disk space if left running unchecked:
-            #log.info('')
-            #log.info(f'####### Saving audio track "AUDIO_FROM_CUSTOMER" from Amazon Connect fragment as WAV to base path: {wav_file_base_path}')
-            #self.kvs_fragment_processor.save_connect_fragment_audio_track_from_customer_as_wav(fragment_dom, wav_file_base_path)
-            #log.info(f'####### Saving audio track "AUDIO_TO_CUSTOMER" from Amazon Connect fragment as WAV to base path: {wav_file_base_path}')
-            #self.kvs_fragment_processor.save_connect_fragment_audio_track_to_customer_as_wav(fragment_dom, wav_file_base_path)
+
+            log.info('')
+            log.info(f'####### Saving audio track "AUDIO_FROM_CUSTOMER" from Amazon Connect fragment as WAV to base path: {wav_file_base_path}')
+            self.kvs_fragment_processor.save_connect_fragment_audio_track_from_customer_as_wav(fragment_dom, wav_file_base_path)
+            log.info(f'####### Saving audio track "AUDIO_TO_CUSTOMER" from Amazon Connect fragment as WAV to base path: {wav_file_base_path}')
+            self.kvs_fragment_processor.save_connect_fragment_audio_track_to_customer_as_wav(fragment_dom, wav_file_base_path)
 
 
         except Exception as err:
