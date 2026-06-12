@@ -132,57 +132,77 @@ class KvsConsumerLibrary(Thread):
     # Read and parse streaming media from a Kinesis Video Stream
     def run(self):
         '''
-        Reads in chunks (unframed number of raw bytes) from a KVS GetMedia or GetMediaForFragmentList Streaming Body response 
-        and parses into bounded MKV fragments. Raw data is buffered until a complete fragment is received which is then forwarded to the 
-        on_fragmemt_arrived callback. Fragment is delivered as a raw byte array and also a parsed EBMLite Document that is a DOM like 
-        structure of the elements (including Tags) within the given Fragment. 
+        Reads in chunks (unframed number of raw bytes) from a KVS
+        GetMedia or GetMediaForFragmentList Streaming Body response and
+        parses into bounded MKV fragments. Raw data is buffered until a
+        complete fragment is received which is then forwarded to the 
+        on_fragmemt_arrived callback. Fragment is delivered as a raw
+        byte array and also a parsed EBMLite Document that is a DOM like 
+        structure of the elements (including Tags) within the given
+        Fragment.
 
-        Kinesis Video will continually update the streaming buffer with media as soon as its available. For StartSelectorType = NOW,
-        bytes from the media stream will be available as fast as they arrive into Kinesis Video by the producer. In this case the 
-        consumer bandwidth and fragment rate will be equal to that of the producer. However, if StartSelector is set to sometime 
-        in the past then all fragments from start to end time will be available immediately. The effect is this will 
-        read in bytes as fast as the system resources (KVS limits, CPU and bandwidth) will allow until the stream has 
-        caught up with the leading edge of media being generated.
-
+        Kinesis Video will continually update the streaming buffer with
+        media as soon as its available. For StartSelectorType = NOW,
+        bytes from the media stream will be available as fast as they
+        arrive into Kinesis Video by the producer. In this case the
+        consumer bandwidth and fragment rate will be equal to that of
+        the producer. However, if StartSelector is set to sometime in
+        the past then all fragments from start to end time will be
+        available immediately. The effect is this will read in bytes as
+        fast as the system resources (KVS limits, CPU and bandwidth)
+        will allow until the stream has caught up with the leading edge
+        of media being generated.
         '''
 
         try:
-            # Get the steam botocore.response.Streamingody object from the provided GetMedia response
+            # Get the steam botocore.response.StreamingBody object from
+            # the provided GetMedia response
             kvs_streaming_buffer=self.get_media_response_object['Payload']
 
             #########################################
-            # Iterate through reading and parsing streaming body response of KVS GET Media API call to MKV fragments.
+            # Iterate through reading and parsing streaming body
+            # response of KVS GET Media API call to MKV fragments.
             #########################################
             chunk_buffer = bytearray()
             fragment_read_start_time = timeit.default_timer()
 
             chunk_read_count = 0
             
-            # Uses the StreamingBody object iterator to read in (default 1024 byte) chunks from the streaming buffer.
+            # Uses the StreamingBody object iterator to read in (default
+            # 1024 byte) chunks from the streaming buffer.
             for chunk in kvs_streaming_buffer:
 
                 if self._stop_get_media:
                     break
 
-                # Append chunk bytes to ByteArray buffer while waiting for the entire MKV fragment to arrive.
+                # Append chunk bytes to ByteArray buffer while waiting
+                # for the entire MKV fragment to arrive.
                 chunk_buffer.extend(chunk)
 
                 #############################################
-                # Parse current byte buffer to MKV EBML DOM like object using EBMLite
+                # Parse current byte buffer to MKV EBML DOM like object
+                # using EBMLite
                 #############################################
                 fragement_intrum_dom = self.schema.loads(chunk_buffer)
 
                 #############################################
-                #  Process a complete fragment if its arrived and send to the on_fragment_arrived callback. 
+                #  Process a complete fragment if its arrived and send
+                # to the on_fragment_arrived callback. 
                 #############################################
-                # EBML header elements indicate the start of a new fragment. Here we check if the start of a second fragment
-                # has arrived and use its start to identify the byte boundary of the first complete fragment to process.
+                # EBML header elements indicate the start of a new
+                # fragment. Here we check if the start of a second
+                # fragment has arrived and use its start to identify the
+                # byte boundary of the first complete fragment to
+                # process.
                 ebml_header_elements = self._get_ebml_header_elements(fragement_intrum_dom)
 
-                # If multiple fragment headers then the first fragment has been received completely and ready to process.
+                # If multiple fragment headers then the first fragment
+                # has been received completely and ready to process.
                 if (len(ebml_header_elements) > 1):
                     
-                    # Get the offset for the first and second fragments. First fragment offset should be zero or fragment boundary is out of sync!
+                    # Get the offset for the first and second fragments.
+                    # First fragment offset should be zero or fragment
+                    # boundary is out of sync!
                     first_ebml_header_offset = ebml_header_elements[0].offset 
                     second_ebml_header_offset = ebml_header_elements[1].offset 
 

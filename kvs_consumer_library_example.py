@@ -88,7 +88,7 @@ class KvsPythonConsumerExample:
         get_media_response = kvs_media_client.get_media(
             StreamName=KVS_STREAM01_NAME,
             StartSelector={
-                'StartSelectorType': 'NOW'
+                'StartSelectorType': 'EARLIEST'
             }
         )
 
