@@ -27,15 +27,8 @@ none are being received the consumer will gracefully exit. If you prefer to pars
 StartSelector used in the kvs_consumer_library_example.
 
 2. Clone and CD into this repository
-```
-git clone https://github.com/aws-samples/amazon-kinesis-video-streams-consumer-library-for-python.git
-cd amazon-kinesis-video-streams-consumer-library-for-python
-```
 
 3. Install Python Dependencies:
-```
-python3 -m pip install -r requirements.txt
-```
 
 4. Open the cloned repository with your favourite IDE 
 
