@@ -134,7 +134,7 @@ class KvsPythonConsumerExample:
         With these parameters you can do a variety of post-processing including saving the fragment as a standalone MKV file
         to local disk, request individual frames as a numpy.ndarray for data science applications or as JPEG/PNG files to save to disk 
         or pass to computer vison solutions. Finally, you can also use the Fragment DOM to access Meta-Data such as the MKV tags as well
-        as track ID and codec information. 
+        as track ID and codec information.
 
         In the below example we provide a demonstration of all of these described functions.
 

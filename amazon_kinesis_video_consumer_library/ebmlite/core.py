@@ -1428,7 +1428,7 @@ class Schema(object):
 #
 # ==============================================================================
 
-def _expandSchemaPath(path, name=''):
+def _expandSchemaPath(path, name=''):  # !req
     """ Helper function to process a schema path or name, converting module
         references to Paths.
 
@@ -1508,7 +1508,7 @@ def listSchemata(*paths, absolute=True):
     return schemata
 
 
-def loadSchema(filename, reload=False, paths=None, **kwargs):
+def loadSchema(filename, reload=False, paths=None, **kwargs):  # !req
     """ Import a Schema XML file. Loading the same file more than once will
         return the initial instantiation, unless `reload` is `True`.
 

@@ -41,10 +41,12 @@ __status__ = "Development"
 __copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
 __author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
-import timeit
+from time import perf_coutner
 import logging
 from threading import Thread
-from amazon_kinesis_video_consumer_library.ebmlite import loadSchema
+from amazon_kinesis_video_consumer_library.ebmlite import (
+    loadSchema,  # !checked for what functions depend on this
+)
 
 # Init the logger.
 log = logging.getLogger(__name__)
@@ -52,12 +54,12 @@ log = logging.getLogger(__name__)
 
 class KvsConsumerLibrary(Thread):
 
-    def __init__(self, 
-                stream_name, 
-                get_media_response_object, 
-                on_fragment_arrived, 
-                on_read_stream_complete, 
-                on_read_stream_exception):
+    def __init__(self,
+                 stream_name,
+                 get_media_response_object,
+                 on_fragment_arrived,
+                 on_read_stream_complete,
+                 on_read_stream_exception):
         '''
             Initialize the KVS media consumer library
         '''
@@ -67,7 +69,7 @@ class KvsConsumerLibrary(Thread):
         # Used to trigger graceful exit of this thread
         self._stop_get_media = False
 
-        # Init the local vars. 
+        # Init the local vars.
         log.info('Initilizing KvsConsumerLibrary...')
         self.stream_name = stream_name
         self.get_media_response_object = get_media_response_object
@@ -77,53 +79,29 @@ class KvsConsumerLibrary(Thread):
 
         log.info('Loading EBMLlite MKV Schema....')
         self.schema = loadSchema('matroska.xml')
-    
-    def _get_ebml_header_elements(self, fragement_dom):
+
+    def _get_ebml_header_elements(self, fragement_dom):  # !req
         '''
-        Returns the EBML Header elements in the Fragment DOM. EBML Header elements indicate the start 
-        of a new fragment and so we use them to set the byte boundaries of individual fragments as they
-        arrive in the raw data stream (chunks).
+        Returns the EBML Header elements in the Fragment DOM. EBML
+        Header elements indicate the start  of a new fragment and so we
+        use them to set the byte boundaries of individual fragments as
+        they arrive in the raw data stream (chunks).
 
         ### Parameters:
 
             **fragment_dom**: ebmlite.core.Document <ebmlite.core.MatroskaDocument>
-                The DOM like structure describing the fragment parsed by EBMLite. 
-
+                The DOM like structure describing the fragment parsed
+                by EBMLite.
         '''
         ebml_header_elements = []
-        # Iterate through the fragment elements and capture any EBML Fragment headers (indicating the start of a new fragment)
+        # Iterate through the fragment elements and capture any EBML
+        # Fragment headers (indicating the start of a new fragment)
         for element in fragement_dom:
-                if (element.id == 0x1A45DFA3):   # EBML (Master) element ID = 0x1A45DFA3 (440786851 dec)
-                    ebml_header_elements.append(element)
-        
+            # EBML (Master) element ID = 0x1A45DFA3 (440786851 dec)
+            if (element.id == 0x1A45DFA3):
+                ebml_header_elements.append(element)
+
         return ebml_header_elements
-
-    def _get_simple_block_elements(self, fragement_dom):
-        '''
-        Returns the DOM SimpleBlock elements found in the fragment. 
-        SimpleBlock Elements store the payload of the MKV fragemeny - typically H.264/265 frames but 
-        can be any data playload that was ingested by the KVS producer.
-
-        ### Parameters:
-
-            **fragment_dom**: ebmlite.core.Document <ebmlite.core.MatroskaDocument>
-                The DOM like structure describing the fragment parsed by EBMLite. 
-        
-        '''
-        simple_block_elements = []
-        # Iterate through the fragment elements and capture any Simple Block type elements. 
-        # These carry the fragments payload bytes (typically image frames as raw bytes.)
-        for element in fragement_dom:
-                if (element.id == 0x18538067):                          # Segment element ID = 0x18538067
-                    
-                    for segement_child in element:
-                        if (segement_child.id == 0x1F43B675):           # Cluster element ID = 0x1F43B675
-
-                            for cluster_child in segement_child:
-                                if (cluster_child.id == 0xA3):          # SimpleBlock element ID = xA3
-                                    simple_block_elements.append(cluster_child)
-
-        return simple_block_elements
 
     def stop_thread(self):
         self._stop_get_media = True
@@ -164,10 +142,10 @@ class KvsConsumerLibrary(Thread):
             # response of KVS GET Media API call to MKV fragments.
             #########################################
             chunk_buffer = bytearray()
-            fragment_read_start_time = timeit.default_timer()
+            fragment_read_start_time = perf_coutner()
 
             chunk_read_count = 0
-            
+
             # Uses the StreamingBody object iterator to read in (default
             # 1024 byte) chunks from the streaming buffer.
             for chunk in kvs_streaming_buffer:
@@ -187,7 +165,7 @@ class KvsConsumerLibrary(Thread):
 
                 #############################################
                 #  Process a complete fragment if its arrived and send
-                # to the on_fragment_arrived callback. 
+                # to the on_fragment_arrived callback.
                 #############################################
                 # EBML header elements indicate the start of a new
                 # fragment. Here we check if the start of a second
@@ -203,8 +181,8 @@ class KvsConsumerLibrary(Thread):
                     # Get the offset for the first and second fragments.
                     # First fragment offset should be zero or fragment
                     # boundary is out of sync!
-                    first_ebml_header_offset = ebml_header_elements[0].offset 
-                    second_ebml_header_offset = ebml_header_elements[1].offset 
+                    first_ebml_header_offset = ebml_header_elements[0].offset
+                    second_ebml_header_offset = ebml_header_elements[1].offset
 
                     # Isolate the bytes from the first complete MKV fragments in the received chunk data
                     fragment_bytes = chunk_buffer[first_ebml_header_offset : second_ebml_header_offset]
@@ -212,36 +190,39 @@ class KvsConsumerLibrary(Thread):
                     # Parse the complete fragment as EBML to a DOM like object
                     fragment_dom = self.schema.loads(fragment_bytes)
 
-                    # Calculate duration taken receiving this fragment - just for telemetry of the steaming data. 
-                    fragment_receive_duration = timeit.default_timer() - fragment_read_start_time
-                    
-                    # Forward fragment to the on_fragment_arrived callback.
-                    self.on_fragment_arrived_callback(self.stream_name, 
-                                                      fragment_bytes, 
-                                                      fragment_dom, 
-                                                      fragment_receive_duration)
+                    # Calculate duration taken receiving this fragment - just for telemetry of the steaming data.
+                    fragment_receive_duration = perf_coutner() - fragment_read_start_time
 
-                    # Remove the processed MKV segment from the raw byte chunk_buffer
+                    # Forward fragment to the on_fragment_arrived callback.
+                    self.on_fragment_arrived_callback(
+                        self.stream_name,
+                        fragment_bytes,
+                        fragment_dom,
+                        fragment_receive_duration
+                    )
+
+                    # Remove the processed MKV segment from the raw byte
+                    # chunk_buffer
                     chunk_buffer = chunk_buffer[second_ebml_header_offset: ]
 
-                    # Reset the chunk read count. 
+                    # Reset the chunk read count.
                     chunk_read_count = 0
 
-                    # Reset the start time for the next segment iteration just to time fragment durations
-                    fragment_read_start_time = timeit.default_timer()
-                
+                    # Reset the start time for the next segment
+                    # iteration just to time fragment durations
+                    fragment_read_start_time = perf_coutner()
+
                 #############################################
                 # Increment to chunk read count for this fragment
-                chunk_read_count +=1
+                chunk_read_count += 1
 
             #############################################
             # Exit the thread if the stream has no more chunks.
             #############################################
-            #call the on_stream_read_complete() callback and exit the thread.
+            # call the on_stream_read_complete() callback and exit the
+            # thread.
             self.on_read_stream_complete_callback(self.stream_name)
 
         except Exception as err:
             # Pass any exceptions to exception callback.
             self.on_read_stream_exception(self.stream_name, err)
-        
-

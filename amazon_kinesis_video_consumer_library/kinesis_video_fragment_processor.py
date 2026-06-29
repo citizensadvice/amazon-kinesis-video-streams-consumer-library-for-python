@@ -19,16 +19,18 @@ import logging
 import amazon_kinesis_video_consumer_library.ebmlite.util as emblite_utils
 import wave
 import amazon_kinesis_video_consumer_library.ebmlite.decoding as ebmlite_decoding
+from amazon_kinesis_video_consumer_library.ebmlite import Document
 
 # Init the logger.
 log = logging.getLogger(__name__)
+
 
 class KvsFragementProcessor():
 
     ####################################################
     # Fragment processing functions
 
-    def get_fragment_tags(self, fragment_dom):
+    def get_fragment_tags(self, fragment_dom: Document):
         '''
         Parses a MKV Fragment Doc (of type
         ebmlite.core.MatroskaDocument) that is returned to the provided
@@ -54,7 +56,7 @@ class KvsFragementProcessor():
             if (element.id == 0x18538067):          # MKV Segment Element ID
                 segment_element = element
                 break
-        
+
         if (not segment_element):
             raise KeyError('Segment Element required but not found in fragment_doc' )
 
@@ -79,14 +81,14 @@ class KvsFragementProcessor():
                     tag_name = element.value
                 elif (element.id == 0x4487 or element.id == 0x4485):    # TagString and TagBinary element type IDs respectively
                     tag_value = element.value
-            
+
             # As long as tag name was found add the Tag to the return dict. 
             if (tag_name):
                 simple_tags_dict[tag_name] = tag_value
 
         return simple_tags_dict
-    
-    def get_fragement_dom_pretty_string(self, fragment_dom):
+
+    def get_fragement_dom_pretty_string(self, fragment_dom: Document):
         '''
         Returns the Pretty Print parsing of the EBMLite fragment DOM as a string
 
@@ -99,13 +101,13 @@ class KvsFragementProcessor():
             **pretty_print_str**: str
                 Pretty print string of the Fragment DOM object
         '''
-        
+
         pretty_print_str = io.StringIO()
 
         emblite_utils.pprint(fragment_dom, out=pretty_print_str)
         return pretty_print_str.getvalue()
 
-    def get_raw_audio_track_from_simple_block(self, mkv_element):
+    def get_raw_audio_track_from_simple_block(self, mkv_element: Document):
         '''
         This function gets the raw audio track from a SimpleBlock element
         in a Matroska file from Amazon Connect.
@@ -128,7 +130,7 @@ class KvsFragementProcessor():
             return mkv_element.parse(mkv_element.stream, mkv_element.size-4)
         return None
     
-    def get_audio_track_number_from_simple_block(self, mkv_element):
+    def get_audio_track_number_from_simple_block(self, mkv_element: Document):
         '''
         This function gets the number of audio track from a SimpleBlock element
         in a Matroska file from Amazon Connect.
@@ -291,7 +293,7 @@ class KvsFragementProcessor():
             file_name_path_part (str): The file path to save the WAV file to
 
         '''
-        track_number =  self.get_track_number_by_name(fragment_dom, "AUDIO_TO_CUSTOMER")
+        track_number = self.get_track_number_by_name(fragment_dom, "AUDIO_TO_CUSTOMER")
         if track_number:
             file_name_path = file_name_path_part + "-AUDIO_TO_CUSTOMER.wav"
             self.save_connect_fragment_audio_track_as_wav(fragment_dom, track_number, file_name_path)
