@@ -35,7 +35,7 @@ Credits:
 # EMBLite MIT License: https://github.com/MideTechnology/ebmlite/blob/development/LICENSE
 
  '''
- 
+
 __version__ = "0.0.1"
 __status__ = "Development"
 __copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
@@ -45,7 +45,7 @@ from time import perf_counter
 from io import BytesIO
 import logging
 from threading import Thread
-from ebmlite import loadSchema
+import ebmlite
 
 # Init the logger.
 log = logging.getLogger(__name__)
@@ -77,9 +77,13 @@ class KvsConsumerLibrary(Thread):
         self.on_read_stream_exception = on_read_stream_exception
 
         log.info('Loading EBMLlite MKV Schema....')
-        self.schema = loadSchema('matroska.xml')
+        self.schema = ebmlite.loadSchema('matroska.xml')
+        master = self.schema.ELEMENT_TYPES.get('master')
+        if not master:
+            raise KeyError("Could not find master element in Matroska schema")
+        self.matroska_master_element_type = master
 
-    def _get_ebml_header_elements(self, fragement_dom):  # !req
+    def _get_ebml_header_elements(self, fragement_dom: ebmlite.Document):  # !req
         '''
         Returns the EBML Header elements in the Fragment DOM. EBML
         Header elements indicate the start  of a new fragment and so we
@@ -96,8 +100,7 @@ class KvsConsumerLibrary(Thread):
         # Iterate through the fragment elements and capture any EBML
         # Fragment headers (indicating the start of a new fragment)
         for element in fragement_dom:
-            # EBML (Master) element ID = 0x1A45DFA3 (440786851 dec)
-            if (element.id == 0x1A45DFA3):
+            if (isinstance(element, self.matroska_master_element_type)):
                 ebml_header_elements.append(element)
 
         return ebml_header_elements
