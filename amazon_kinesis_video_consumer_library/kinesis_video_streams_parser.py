@@ -1,15 +1,15 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0.
 
-'''
-Amazon Kinesis Video Stream (KVS) Consumer Library for Python. 
+"""
+Amazon Kinesis Video Stream (KVS) Consumer Library for Python.
 
-This library parses streaming bytes (chunks) made available by the StreamingBody returned from calls 
+This library parses streaming bytes (chunks) made available by the StreamingBody returned from calls
 to the KVS Media Client GetMedia and KVS Archive Media Client GetMediaForFragmentList
-API. 
+API.
 
-The Amazon Kinesis Video Stream (KVS) Consumer Library for Python reads in streaming bytes as they become 
-available and parses to individual MKV fragments. The library is threaded and non-blocking, 
+The Amazon Kinesis Video Stream (KVS) Consumer Library for Python reads in streaming bytes as they become
+available and parses to individual MKV fragments. The library is threaded and non-blocking,
 once a stream is being read it forwards received MKV fragments to named call-backs in the users application.
 
 Fragments are returned as raw bytes and a searchable DOM like structure by parsing with EMBLite by MideTechnology.
@@ -31,10 +31,10 @@ or GetMediaForFragmentList call,
 
 Credits:
 # EMBLite by MideTechnology is an external EBML parser found at https://github.com/MideTechnology/ebmlite
-# For convenance a slightly modified version of EMBLite is shipped with the KvsConsumerLibrary but adding credit where its due. 
+# For convenance a slightly modified version of EMBLite is shipped with the KvsConsumerLibrary but adding credit where its due.
 # EMBLite MIT License: https://github.com/MideTechnology/ebmlite/blob/development/LICENSE
 
- '''
+"""
 
 __version__ = "0.0.1"
 __status__ = "Development"
@@ -52,16 +52,17 @@ log = logging.getLogger(__name__)
 
 
 class KvsConsumerLibrary(Thread):
-
-    def __init__(self,
-                 stream_name,
-                 get_media_response_object,
-                 on_fragment_arrived,
-                 on_read_stream_complete,
-                 on_read_stream_exception):
-        '''
-            Initialize the KVS media consumer library
-        '''
+    def __init__(
+        self,
+        stream_name,
+        get_media_response_object,
+        on_fragment_arrived,
+        on_read_stream_complete,
+        on_read_stream_exception,
+    ):
+        """
+        Initialize the KVS media consumer library
+        """
         # Call the Thread class's init function
         Thread.__init__(self)
 
@@ -69,22 +70,24 @@ class KvsConsumerLibrary(Thread):
         self._stop_get_media = False
 
         # Init the local vars.
-        log.info('Initilizing KvsConsumerLibrary...')
+        log.info("Initilizing KvsConsumerLibrary...")
         self.stream_name = stream_name
         self.get_media_response_object = get_media_response_object
         self.on_fragment_arrived_callback = on_fragment_arrived
         self.on_read_stream_complete_callback = on_read_stream_complete
         self.on_read_stream_exception = on_read_stream_exception
 
-        log.info('Loading EBMLlite MKV Schema....')
-        self.schema = ebmlite.loadSchema('matroska.xml')
-        master = self.schema.elementsByName.get('EBML')
+        log.info("Loading EBMLlite MKV Schema....")
+        self.schema = ebmlite.loadSchema("matroska.xml")
+        master = self.schema.elementsByName.get("EBML")
         if not master:
             raise KeyError("Could not find master element in Matroska schema")
         self.matroska_master_element_type = master
 
-    def _get_ebml_header_elements(self, fragement_dom: ebmlite.Document):  # !req
-        '''
+    def _get_ebml_header_elements(
+        self, fragement_dom: ebmlite.Document
+    ) -> list[ebmlite.Element]:
+        """
         Returns the EBML Header elements in the Fragment DOM. EBML
         Header elements indicate the start  of a new fragment and so we
         use them to set the byte boundaries of individual fragments as
@@ -95,12 +98,12 @@ class KvsConsumerLibrary(Thread):
             **fragment_dom**: ebmlite.core.Document <ebmlite.core.MatroskaDocument>
                 The DOM like structure describing the fragment parsed
                 by EBMLite.
-        '''
+        """
         ebml_header_elements = []
         # Iterate through the fragment elements and capture any EBML
         # Fragment headers (indicating the start of a new fragment)
         for element in fragement_dom:
-            if (isinstance(element, self.matroska_master_element_type)):
+            if isinstance(element, self.matroska_master_element_type):
                 ebml_header_elements.append(element)
 
         return ebml_header_elements
@@ -111,13 +114,13 @@ class KvsConsumerLibrary(Thread):
     ####################################################
     # Read and parse streaming media from a Kinesis Video Stream
     def run(self):
-        '''
+        """
         Reads in chunks (unframed number of raw bytes) from a KVS
         GetMedia or GetMediaForFragmentList Streaming Body response and
         parses into bounded MKV fragments. Raw data is buffered until a
-        complete fragment is received which is then forwarded to the 
+        complete fragment is received which is then forwarded to the
         on_fragmemt_arrived callback. Fragment is delivered as a raw
-        byte array and also a parsed EBMLite Document that is a DOM like 
+        byte array and also a parsed EBMLite Document that is a DOM like
         structure of the elements (including Tags) within the given
         Fragment.
 
@@ -132,12 +135,12 @@ class KvsConsumerLibrary(Thread):
         fast as the system resources (KVS limits, CPU and bandwidth)
         will allow until the stream has caught up with the leading edge
         of media being generated.
-        '''
+        """
 
         try:
             # Get the steam botocore.response.StreamingBody object from
             # the provided GetMedia response
-            kvs_streaming_buffer=self.get_media_response_object['Payload']
+            kvs_streaming_buffer = self.get_media_response_object["Payload"]
 
             #########################################
             # Iterate through reading and parsing streaming body
@@ -151,7 +154,6 @@ class KvsConsumerLibrary(Thread):
             # Uses the StreamingBody object iterator to read in (default
             # 1024 byte) chunks from the streaming buffer.
             for chunk in kvs_streaming_buffer:
-
                 if self._stop_get_media:
                     break
 
@@ -163,10 +165,7 @@ class KvsConsumerLibrary(Thread):
                 # Parse current byte buffer to MKV EBML DOM like object
                 # using EBMLite
                 #############################################
-                fragement_intrum_dom = self.schema.load(
-                    BytesIO(chunk_buffer),
-                    headers=True
-                )
+                fragement_intrum_dom = self.schema.load(BytesIO(chunk_buffer), headers=True)
 
                 #############################################
                 #  Process a complete fragment if its arrived and send
@@ -181,7 +180,7 @@ class KvsConsumerLibrary(Thread):
 
                 # If multiple fragment headers then the first fragment
                 # has been received completely and ready to process.
-                if (len(ebml_header_elements) > 1):
+                if len(ebml_header_elements) > 1:
                     # Get the offset for the first and second fragments.
                     # First fragment offset should be zero or fragment
                     # boundary is out of sync!
@@ -190,35 +189,28 @@ class KvsConsumerLibrary(Thread):
 
                     # Isolate the bytes from the first complete MKV
                     # fragments in the received chunk data
-                    fragment_bytes = chunk_buffer[first_ebml_header_offset : second_ebml_header_offset]
+                    fragment_bytes = chunk_buffer[
+                        first_ebml_header_offset:second_ebml_header_offset
+                    ]
 
                     # Parse the complete fragment as EBML to a DOM like object
-                    fragment_dom = self.schema.load(
-                        BytesIO(fragment_bytes),
-                        headers=True
-                    )
+                    fragment_dom = self.schema.load(BytesIO(fragment_bytes), headers=True)
 
                     # Calculate duration taken receiving this fragment
-                    # - just for telemetry of the steaming data.
+                    # - just for telemetry of the streaming data.
                     fragment_receive_duration = perf_counter() - fragment_read_start_time
-
-                    # Forward fragment to the on_fragment_arrived callback.
-                    self.on_fragment_arrived_callback(self.stream_name,
-                                                      fragment_bytes,
-                                                      fragment_dom,
-                                                      fragment_receive_duration)
 
                     # Forward fragment to the on_fragment_arrived callback.
                     self.on_fragment_arrived_callback(
                         self.stream_name,
                         fragment_bytes,
                         fragment_dom,
-                        fragment_receive_duration
+                        fragment_receive_duration,
                     )
 
                     # Remove the processed MKV segment from the raw byte
                     # chunk_buffer
-                    chunk_buffer = chunk_buffer[second_ebml_header_offset: ]
+                    chunk_buffer = chunk_buffer[second_ebml_header_offset:]
 
                     # Reset the chunk read count.
                     chunk_read_count = 0

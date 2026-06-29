@@ -35,23 +35,23 @@ from pathlib import Path
 _ROOT_DIR_PATH = str(Path(__file__).parent)
 _ARTEFACTS_DIR = "logging_output"
 
-_FILE_NAME_FOR_CONSOLE_OUTPUT = 'console_output.log'
-_RELATIVE_CONSOLE_OUTPUT_FILE_PATH = f'{_ARTEFACTS_DIR}/{_FILE_NAME_FOR_CONSOLE_OUTPUT}'
-_FULL_CONSOLE_OUTPUT_FILE_PATH = f'{_ROOT_DIR_PATH}/{_RELATIVE_CONSOLE_OUTPUT_FILE_PATH}'
+_FILE_NAME_FOR_CONSOLE_OUTPUT = "console_output.log"
+_RELATIVE_CONSOLE_OUTPUT_FILE_PATH = f"{_ARTEFACTS_DIR}/{_FILE_NAME_FOR_CONSOLE_OUTPUT}"
+_FULL_CONSOLE_OUTPUT_FILE_PATH = f"{_ROOT_DIR_PATH}/{_RELATIVE_CONSOLE_OUTPUT_FILE_PATH}"
 
-_FILE_NAME_FOR_DEBUG_OUTPUT = 'debug_output.log'
-_RELATIVE_DEBUG_OUTPUT_FILE_PATH = f'{_ARTEFACTS_DIR}/{_FILE_NAME_FOR_DEBUG_OUTPUT}'
-_FULL_DEBUG_OUTPUT_FILE_PATH = f'{_ROOT_DIR_PATH}/{_RELATIVE_DEBUG_OUTPUT_FILE_PATH}'
+_FILE_NAME_FOR_DEBUG_OUTPUT = "debug_output.log"
+_RELATIVE_DEBUG_OUTPUT_FILE_PATH = f"{_ARTEFACTS_DIR}/{_FILE_NAME_FOR_DEBUG_OUTPUT}"
+_FULL_DEBUG_OUTPUT_FILE_PATH = f"{_ROOT_DIR_PATH}/{_RELATIVE_DEBUG_OUTPUT_FILE_PATH}"
 
 _CONSOLE_LOG_LEVEL = logging.INFO
 _DEBUG_FILE_LOG_LEVEL = logging.DEBUG
 
 handlers: list[logging.Handler]
 
-config_message = 'logger configured:\n'
-config_message += 'logging will go to 2 output files\n'
-config_message += 'console output - '.ljust(18) + f'{_FULL_CONSOLE_OUTPUT_FILE_PATH}\n'
-config_message += 'debug output - '.ljust(18) + f'{_FULL_DEBUG_OUTPUT_FILE_PATH}\n'
+config_message = "logger configured:\n"
+config_message += "logging will go to 2 output files\n"
+config_message += "console output - ".ljust(18) + f"{_FULL_CONSOLE_OUTPUT_FILE_PATH}\n"
+config_message += "debug output - ".ljust(18) + f"{_FULL_DEBUG_OUTPUT_FILE_PATH}\n"
 
 
 def ensure_directories_present(directories: list[str]):
@@ -65,25 +65,22 @@ def ensure_directory_present(dir: str):
 
 
 def _get_debug_output_formatter() -> logging.Formatter:
-    debug_file_format = '%(levelname)s '
-    debug_file_format += 'from '
+    debug_file_format = "%(levelname)s "
+    debug_file_format += "from "
     debug_file_format += 'function "%(funcName)s" '
     debug_file_format += 'in "%(pathname)s", '
-    debug_file_format += 'line %(lineno)s '
-    debug_file_format += 'at %(asctime)s '
-    debug_file_format += '\n%(message)s\n'
+    debug_file_format += "line %(lineno)s "
+    debug_file_format += "at %(asctime)s "
+    debug_file_format += "\n%(message)s\n"
     return logging.Formatter(fmt=debug_file_format)
 
 
 def _get_console_output_formatter() -> logging.Formatter:
-    console_format = '%(message)s'
+    console_format = "%(message)s"
     return logging.Formatter(fmt=console_format)
 
 
-def _get_stream_handler(
-        level: int,
-        formatter: logging.Formatter
-        ) -> logging.StreamHandler:
+def _get_stream_handler(level: int, formatter: logging.Formatter) -> logging.StreamHandler:
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(level=level)
     stream_handler.setFormatter(fmt=formatter)
@@ -91,70 +88,67 @@ def _get_stream_handler(
 
 
 def _get_file_handler(
-        level: int,
-        filename: str,
-        mode: str,
-        formatter: logging.Formatter
-        ) -> logging.FileHandler:
+    level: int, filename: str, mode: str, formatter: logging.Formatter
+) -> logging.FileHandler:
     file_handler = logging.FileHandler(filename=filename, mode=mode)
     file_handler.setLevel(level=level)
     file_handler.setFormatter(fmt=formatter)
     return file_handler
 
 
-def _get_handlers(create_console_stream_handler: bool = True,
-                  create_console_file_handler: bool = True,
-                  create_debug_file_handler: bool = True
-                  ) -> list[None | logging.Handler]:
+def _get_handlers(
+    create_console_stream_handler: bool = True,
+    create_console_file_handler: bool = True,
+    create_debug_file_handler: bool = True,
+) -> list[None | logging.Handler]:
     console_stream_handler, console_file_handler, debug_file_handler = None, None, None
     if create_console_stream_handler or create_console_file_handler:
         console_output_formatter = _get_console_output_formatter()
         if create_console_stream_handler:
             console_stream_handler = _get_stream_handler(
-                level=_CONSOLE_LOG_LEVEL,
-                formatter=console_output_formatter
-                )
+                level=_CONSOLE_LOG_LEVEL, formatter=console_output_formatter
+            )
         if create_console_file_handler:
             console_file_handler = _get_file_handler(
                 level=_CONSOLE_LOG_LEVEL,
                 filename=_FULL_CONSOLE_OUTPUT_FILE_PATH,
-                mode='w',
-                formatter=console_output_formatter
-                )
+                mode="w",
+                formatter=console_output_formatter,
+            )
     if create_debug_file_handler:
         debug_output_formatter = _get_debug_output_formatter()
         debug_file_handler = _get_file_handler(
             level=_DEBUG_FILE_LOG_LEVEL,
             filename=_FULL_DEBUG_OUTPUT_FILE_PATH,
-            mode='w',
-            formatter=debug_output_formatter
-            )
+            mode="w",
+            formatter=debug_output_formatter,
+        )
 
     return [console_stream_handler, console_file_handler, debug_file_handler]
 
 
 def _add_handlers(
-        handlers: list[logging.FileHandler | logging.StreamHandler | None],
-        logger: logging.Logger
-        ):
+    handlers: list[logging.FileHandler | logging.StreamHandler | None], logger: logging.Logger
+):
     for handler in handlers:
         if handler is not None:
             logger.addHandler(handler)
 
 
-def _set_up_logger(logger: logging.Logger,
-                   create_console_stream_handler: bool = True,
-                   create_console_file_handler: bool = True,
-                   create_debug_file_handler: bool = True,
-                   give_init_message: bool = True
-                   ):
+def _set_up_logger(
+    logger: logging.Logger,
+    create_console_stream_handler: bool = True,
+    create_console_file_handler: bool = True,
+    create_debug_file_handler: bool = True,
+    give_init_message: bool = True,
+):
     output_directories = get_output_directories()
     ensure_directories_present(directories=output_directories)
     handlers = _get_handlers(
         create_console_stream_handler=create_console_stream_handler,
         create_console_file_handler=create_console_file_handler,
-        create_debug_file_handler=create_debug_file_handler
-        )
+        create_debug_file_handler=create_debug_file_handler,
+    )
     _add_handlers(logger=logger, handlers=handlers)
     if give_init_message:
         logger.info(config_message)
@@ -162,10 +156,7 @@ def _set_up_logger(logger: logging.Logger,
 
 def get_output_directories() -> list[str]:
     return_list = []
-    output_files = [
-        _RELATIVE_CONSOLE_OUTPUT_FILE_PATH,
-        _RELATIVE_DEBUG_OUTPUT_FILE_PATH
-        ]
+    output_files = [_RELATIVE_CONSOLE_OUTPUT_FILE_PATH, _RELATIVE_DEBUG_OUTPUT_FILE_PATH]
     for output_file in output_files:
         directory = os.path.dirname(output_file)
         return_list.append(directory)
@@ -181,6 +172,6 @@ def get_full_logger(name: str) -> logging.Logger:
             create_console_stream_handler=True,
             create_console_file_handler=True,
             create_debug_file_handler=True,
-            give_init_message=True
+            give_init_message=True,
         )
     return logger
