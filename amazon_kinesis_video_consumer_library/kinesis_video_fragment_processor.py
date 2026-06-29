@@ -18,9 +18,13 @@ import io
 import logging
 import wave
 
-import ebmlite.util as emblite_utils
-from ebmlite import Document
-import ebmlite.decoding as ebmlite_decoding
+from ebmlite.util import pprint as ebmpprint
+from ebmlite import (
+    Document,
+    loadSchema,
+)
+from ebmlite.decoding import decodeIntLength
+
 
 # Init the logger.
 log = logging.getLogger(__name__)
@@ -31,45 +35,51 @@ class KvsFragementProcessor():
     ####################################################
     # Fragment processing functions
 
+    def __init__(self):
+        self.matroska_elements = loadSchema('matroska.xml').elementsByName
+
     def get_fragment_tags(self, fragment_dom: Document):
         '''
         Parses a MKV Fragment Doc (of type
         ebmlite.core.MatroskaDocument) that is returned to the provided
         callback from get_streaming_fragments() in this class and
-        returns a dict of the SimpleTag elements found. 
+        returns a dict of the SimpleTag elements found.
 
         ### Parameters:
 
             **fragment_dom**: ebmlite.core.Document <ebmlite.core.MatroskaDocument>
-                The DOM like structure describing the fragment parsed by EBMLite. 
+                The DOM like structure describing the fragment parsed by EBMLite.
 
         ### Returns:
 
             simple_tags: dict
 
-            Dictionary of all SimpleTag elements with format -  TagName<String> : TagValue <String | Binary>. 
+            Dictionary of all SimpleTag elements with format -  TagName<String> : TagValue <String | Binary>.
 
         '''
 
         # Get the Segment Element of the Fragment DOM - error if not found
         segment_element = None
         for element in fragment_dom:
-            if (element.id == 0x18538067):          # MKV Segment Element ID
+            if isinstance(element, self.matroska_elements['Segment']):
                 segment_element = element
                 break
 
         if (not segment_element):
-            raise KeyError('Segment Element required but not found in fragment_doc' )
+            raise KeyError('Segment Element required but not found in fragment_doc')
 
         # Save all of the SimpleTag elements in the Segment element
         simple_tag_elements = []
         for element in segment_element:
-            if (element.id == 0x1254C367):                      # Tags element type ID
-                    for tags in element:
-                        if (tags.id == 0x7373):                 # Tag element type ID
-                            for tag_type in tags:
-                                if (tag_type.id == 0x67C8 ):    # SimpleTag element type ID
-                                    simple_tag_elements.append(tag_type)
+            if isinstance(element, self.matroska_elements['Tags']):
+                for tags in element:
+                    if isinstance(tags, self.matroska_elements['Tag']):
+                        for tag_type in tags:
+                            if isinstance(
+                                tag_type,
+                                self.matroska_elements['SimpleTag']
+                            ):
+                                simple_tag_elements.append(tag_type)
 
         # For all SimpleTags types (ID: 0x67C8), save for TagName (ID: 0x7373) and values of TagString (ID:0x4487) or TagBinary (ID: 0x4485 )
         simple_tags_dict = {}
@@ -78,9 +88,12 @@ class KvsFragementProcessor():
             tag_name = None
             tag_value = None
             for element in simple_tag:
-                if (element.id == 0x45A3):                              # Tag Name element type ID
+                if isinstance(element, self.matroska_elements['TagName']):
                     tag_name = element.value
-                elif (element.id == 0x4487 or element.id == 0x4485):    # TagString and TagBinary element type IDs respectively
+                elif (
+                    isinstance(element, self.matroska_elements['TagString'])
+                    or isinstance(element, self.matroska_elements['TagBinary'])
+                ):
                     tag_value = element.value
 
             # As long as tag name was found add the Tag to the return dict. 
@@ -105,7 +118,7 @@ class KvsFragementProcessor():
 
         pretty_print_str = io.StringIO()
 
-        emblite_utils.pprint(fragment_dom, out=pretty_print_str)
+        ebmpprint(fragment_dom, out=pretty_print_str)
         return pretty_print_str.getvalue()
 
     def get_raw_audio_track_from_simple_block(self, mkv_element: Document):
@@ -130,7 +143,7 @@ class KvsFragementProcessor():
             mkv_element.stream.seek(mkv_element.payloadOffset+4)
             return mkv_element.parse(mkv_element.stream, mkv_element.size-4)
         return None
-    
+
     def get_audio_track_number_from_simple_block(self, mkv_element: Document):
         '''
         This function gets the number of audio track from a SimpleBlock element
@@ -150,14 +163,14 @@ class KvsFragementProcessor():
         if mkv_element.name == "SimpleBlock":
             mkv_element.stream.seek(mkv_element.payloadOffset)
             ch = mkv_element.stream.read(1)
-            length, _ = ebmlite_decoding.decodeIntLength(ord(ch))
+            length, _ = decodeIntLength(ord(ch))
             if length == 1:
                 '''
                 removing VINT_MARKER as per https://datatracker.ietf.org/doc/rfc8794/ paragraph 4
                 '''
-                track_nr =  ord(ch) & 127
+                track_nr = ord(ch) & 127
 
-            return track_nr
+                return track_nr
         return None
 
     def get_track_bytearray(self, mkv_dom, track_nr):

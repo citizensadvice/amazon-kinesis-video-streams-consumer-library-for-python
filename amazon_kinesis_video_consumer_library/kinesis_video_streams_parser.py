@@ -78,7 +78,7 @@ class KvsConsumerLibrary(Thread):
 
         log.info('Loading EBMLlite MKV Schema....')
         self.schema = ebmlite.loadSchema('matroska.xml')
-        master = self.schema.ELEMENT_TYPES.get('master')
+        master = self.schema.elementsByName.get('EBML')
         if not master:
             raise KeyError("Could not find master element in Matroska schema")
         self.matroska_master_element_type = master
