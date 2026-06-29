@@ -16,10 +16,11 @@ __author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
 import io
 import logging
-import amazon_kinesis_video_consumer_library.ebmlite.util as emblite_utils
 import wave
-import amazon_kinesis_video_consumer_library.ebmlite.decoding as ebmlite_decoding
-from amazon_kinesis_video_consumer_library.ebmlite import Document
+
+import ebmlite.util as emblite_utils
+from ebmlite import Document
+import ebmlite.decoding as ebmlite_decoding
 
 # Init the logger.
 log = logging.getLogger(__name__)

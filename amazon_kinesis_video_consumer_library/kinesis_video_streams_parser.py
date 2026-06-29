@@ -41,12 +41,11 @@ __status__ = "Development"
 __copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
 __author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
-from time import perf_coutner
+from time import perf_counter
+from io import BytesIO
 import logging
 from threading import Thread
-from amazon_kinesis_video_consumer_library.ebmlite import (
-    loadSchema,  # !checked for what functions depend on this
-)
+from ebmlite import loadSchema
 
 # Init the logger.
 log = logging.getLogger(__name__)
@@ -142,7 +141,7 @@ class KvsConsumerLibrary(Thread):
             # response of KVS GET Media API call to MKV fragments.
             #########################################
             chunk_buffer = bytearray()
-            fragment_read_start_time = perf_coutner()
+            fragment_read_start_time = perf_counter()
 
             chunk_read_count = 0
 
@@ -161,7 +160,10 @@ class KvsConsumerLibrary(Thread):
                 # Parse current byte buffer to MKV EBML DOM like object
                 # using EBMLite
                 #############################################
-                fragement_intrum_dom = self.schema.loads(chunk_buffer)
+                fragement_intrum_dom = self.schema.load(
+                    BytesIO(chunk_buffer),
+                    headers=True
+                )
 
                 #############################################
                 #  Process a complete fragment if its arrived and send
@@ -177,21 +179,31 @@ class KvsConsumerLibrary(Thread):
                 # If multiple fragment headers then the first fragment
                 # has been received completely and ready to process.
                 if (len(ebml_header_elements) > 1):
-                    
                     # Get the offset for the first and second fragments.
                     # First fragment offset should be zero or fragment
                     # boundary is out of sync!
                     first_ebml_header_offset = ebml_header_elements[0].offset
                     second_ebml_header_offset = ebml_header_elements[1].offset
 
-                    # Isolate the bytes from the first complete MKV fragments in the received chunk data
+                    # Isolate the bytes from the first complete MKV
+                    # fragments in the received chunk data
                     fragment_bytes = chunk_buffer[first_ebml_header_offset : second_ebml_header_offset]
 
                     # Parse the complete fragment as EBML to a DOM like object
-                    fragment_dom = self.schema.loads(fragment_bytes)
+                    fragment_dom = self.schema.load(
+                        BytesIO(fragment_bytes),
+                        headers=True
+                    )
 
-                    # Calculate duration taken receiving this fragment - just for telemetry of the steaming data.
-                    fragment_receive_duration = perf_coutner() - fragment_read_start_time
+                    # Calculate duration taken receiving this fragment
+                    # - just for telemetry of the steaming data.
+                    fragment_receive_duration = perf_counter() - fragment_read_start_time
+
+                    # Forward fragment to the on_fragment_arrived callback.
+                    self.on_fragment_arrived_callback(self.stream_name,
+                                                      fragment_bytes,
+                                                      fragment_dom,
+                                                      fragment_receive_duration)
 
                     # Forward fragment to the on_fragment_arrived callback.
                     self.on_fragment_arrived_callback(
@@ -210,7 +222,7 @@ class KvsConsumerLibrary(Thread):
 
                     # Reset the start time for the next segment
                     # iteration just to time fragment durations
-                    fragment_read_start_time = perf_coutner()
+                    fragment_read_start_time = perf_counter()
 
                 #############################################
                 # Increment to chunk read count for this fragment
