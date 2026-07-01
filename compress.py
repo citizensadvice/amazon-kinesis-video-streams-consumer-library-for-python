@@ -5,7 +5,6 @@ from math import sqrt
 import numpy as np
 import wave
 
-
 _root = Path(__file__).parent
 
 
@@ -24,11 +23,20 @@ class AudioFragment:
 class StreamProcessor:
     audio_output_dir: Path = _root / 'compressions'
     audio_input_dir: Path = _root / 'audio_fragments'
-    rms_threshold: float = 0.01
 
-    def __init__(self):
+    def __init__(
+            self,
+            max_chunk_length: int = 120,
+            min_chunk_length: int = 90
+    ):
+        """max length is maximum number of audio fragments to constitute
+        a audio chunk, min length is the minimum. It is important to
+        have a generous difference to allow as wide a window as possible
+        for detection of a quiet period."""
         self.to_client_fragments: list[AudioFragment] = []
         self.from_client_fragments: list[AudioFragment] = []
+        self.max_chunk_size = max_chunk_length
+        self.window_size = max_chunk_length - min_chunk_length
 
     def ready_output_dir(self):
         if not self.audio_output_dir.is_dir():
@@ -65,30 +73,66 @@ class StreamProcessor:
                     else:
                         self.to_client_fragments.append(frag)
 
-    def _write_audio_out(self, fragments: list[AudioFragment], label: str):
-        chunks: list[bytes] = []
-        ready_to_chunk = False
-        chunk = bytes()
-        num_channels = fragments[0].num_channels
-        sample_width = fragments[0].sample_width
-        frame_rate = fragments[0].frame_rate
+    def _write_audio_out(
+            self,
+            fragments: list[AudioFragment],
+            label: str
+    ):
+        """Loops through provided audio fragments, filling up a buffer.
+        When buffer is full, a window is opened on the last handful of
+        fragments. This window is checked for the quietest fragment and
+        the chunk buffer is sliced there. Anything before that slice is
+        written as a wav file. This looping is continued until all
+        fragments are written."""
+        # Assign buffer
+        chunk_buffer: list[AudioFragment] = []
+        chunk_num = 0  # number the chunks
         for frag in fragments:
-            chunk += frag.raw_bytes
-            if frag.rms > self.rms_threshold:
-                ready_to_chunk = True
-            else:
-                if ready_to_chunk:
-                    chunks.append(chunk)
-                    ready_to_chunk = False
-                    chunk = bytes()
-        for idx, chunk in enumerate(chunks):
-            with wave.open(str(self.audio_output_dir / f"{label}-{idx}.wav"), mode="w") as f:
-                f.setnchannels(num_channels)
-                f.setsampwidth(sample_width)
-                f.setframerate(frame_rate)
-                f.writeframes(chunk)
+            # Each frag is added the the buffer
+            chunk_buffer.append(frag)
+            # When buffer is plump
+            if len(chunk_buffer) == self.max_chunk_size:
+                # Number chunk
+                chunk_num += 1
+
+                # Assume last fragment is quietest
+                min_rms = chunk_buffer[-1].rms
+                min_rms_pos_from_end = 1
+                # loop fragments in window
+                reversed_window = chunk_buffer[
+                    -1:                 # starting from end
+                    -self.window_size:  # ending window size from end
+                    -1                  # going backwards
+                ]
+                for frag_pos, frag in enumerate(reversed_window):
+                    if frag.rms < min_rms:
+                        min_rms = frag.rms
+                        min_rms_pos_from_end = frag_pos + 1
+                min_rms_idx = -min_rms_pos_from_end
+
+                # Acquire what we want to write
+                to_write = chunk_buffer[:min_rms_idx]
+                # Remove what we want to write from buffer
+                chunk_buffer = chunk_buffer[min_rms_idx:]
+                self._write_chunk(to_write, label, chunk_num)
+        # Write whatever remains in buffer
+        self._write_chunk(chunk_buffer, label, chunk_num + 1)
+
+    def _write_chunk(self, chunk: list[AudioFragment], label: str, chunk_num: int):
+        audio_bytes = bytes()
+        for frag in chunk:
+            audio_bytes += frag.raw_bytes
+        num_channels = chunk[0].num_channels
+        sample_width = chunk[0].sample_width
+        frame_rate = chunk[0].frame_rate
+        with wave.open(str(self.audio_output_dir / f"{label}-{chunk_num}.wav"), mode="w") as f:
+            f.setnchannels(num_channels)
+            f.setsampwidth(sample_width)
+            f.setframerate(frame_rate)
+            f.writeframes(audio_bytes)
 
     def write_audio(self):
+        self.ready_output_dir()
         self._write_audio_out(self.from_client_fragments, 'from-client')
         self._write_audio_out(self.to_client_fragments, 'to-client')
 
