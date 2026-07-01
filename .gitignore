@@ -4,6 +4,9 @@ logging_output
 compressions
 old_audio_fragments
 
+# VSode stuff
+.vscode
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

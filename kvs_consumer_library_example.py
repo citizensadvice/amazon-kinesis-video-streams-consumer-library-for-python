@@ -220,7 +220,8 @@ class KvsPythonConsumerExample:
             log.info(pretty_frag_dom)
 
             ###########################################
-            # 3) Save Amazon Connect Frames from Fragment to local disk as WAVs
+            # 3) Save Amazon Connect Frames from Fragment to local disk
+            # as WAVs
             ###########################################
             save_dir = str(audio_path)
             wav_file_base_name = self.last_good_fragment_tags[

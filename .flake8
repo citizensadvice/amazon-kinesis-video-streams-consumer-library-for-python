@@ -1,0 +1,6 @@
+
+# Only here to help align Flake8 plugins
+
+[flake8]
+max-line-length = 99
+max-doc-length = 72

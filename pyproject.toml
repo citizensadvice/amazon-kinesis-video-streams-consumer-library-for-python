@@ -8,7 +8,8 @@ dependencies = [
     "av>=17.1.0",
     "boto3>=1.43.28",
     "ebmlite>=3.4.1",
-    "opencv-python>=4.13.0.92",
+    "librosa>=0.11.0",
+    "numpy>=2.4.6",
     "ruff>=0.15.20",
 ]
 
@@ -53,5 +54,5 @@ ignore = [
 [tool.ruff.lint.isort]
 combine-as-imports = true
 
-[tool.ruff.format]
-docstring-code-line-length = 72
+# [tool.ruff.format]
+# docstring-code-line-length = 72
