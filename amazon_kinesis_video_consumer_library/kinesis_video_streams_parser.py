@@ -46,6 +46,8 @@ from io import BytesIO
 import logging
 from threading import Thread
 import ebmlite
+from boto3 import Session
+from botocore.response import StreamingBody
 
 # Init the logger.
 log = logging.getLogger(__name__)
@@ -54,28 +56,25 @@ log = logging.getLogger(__name__)
 class KvsConsumerLibrary(Thread):
     def __init__(
         self,
-        stream_name,
-        get_media_response_object,
+        kvs_stream_name: str,
         on_fragment_arrived,
         on_read_stream_complete,
         on_read_stream_exception,
     ):
-        """
-        Initialize the KVS media consumer library
-        """
         # Call the Thread class's init function
-        Thread.__init__(self)
+        super().__init__()
 
         # Used to trigger graceful exit of this thread
         self._stop_get_media = False
 
         # Init the local vars.
+        self.kvs_stream_name = kvs_stream_name
         log.info("Initilizing KvsConsumerLibrary...")
-        self.stream_name = stream_name
-        self.get_media_response_object = get_media_response_object
+
         self.on_fragment_arrived_callback = on_fragment_arrived
         self.on_read_stream_complete_callback = on_read_stream_complete
         self.on_read_stream_exception = on_read_stream_exception
+        self.__acquire_stream_buffer(kvs_stream_name)
 
         log.info("Loading EBMLlite MKV Schema....")
         self.schema = ebmlite.loadSchema("matroska.xml")
@@ -83,6 +82,23 @@ class KvsConsumerLibrary(Thread):
         if not master:
             raise KeyError("Could not find master element in Matroska schema")
         self.matroska_master_element_type = master
+
+    def __acquire_stream_buffer(self, kvs_stream_name: str):
+        session = Session(region_name='eu-west-2')
+        kvs_client = session.client("kinesisvideo")
+        response = kvs_client.get_data_endpoint(
+            StreamName=kvs_stream_name,
+            APIName="GET_MEDIA"
+        )
+        get_media_endpoint = response["DataEndpoint"]
+        kvs_media_client = session.client(
+            "kinesis-video-media", endpoint_url=get_media_endpoint
+        )
+        get_media_response_object = kvs_media_client.get_media(
+            StreamName=kvs_stream_name,
+            StartSelector={"StartSelectorType": "EARLIEST"}
+        )
+        self.kvs_streaming_buffer: StreamingBody = get_media_response_object["Payload"]
 
     def _get_ebml_header_elements(
         self, fragement_dom: ebmlite.Document
@@ -138,9 +154,6 @@ class KvsConsumerLibrary(Thread):
         """
 
         try:
-            # Get the steam botocore.response.StreamingBody object from
-            # the provided GetMedia response
-            kvs_streaming_buffer = self.get_media_response_object["Payload"]
 
             #########################################
             # Iterate through reading and parsing streaming body
@@ -153,7 +166,7 @@ class KvsConsumerLibrary(Thread):
 
             # Uses the StreamingBody object iterator to read in (default
             # 1024 byte) chunks from the streaming buffer.
-            for chunk in kvs_streaming_buffer:
+            for chunk in self.kvs_streaming_buffer:
                 if self._stop_get_media:
                     break
 
@@ -202,7 +215,7 @@ class KvsConsumerLibrary(Thread):
 
                     # Forward fragment to the on_fragment_arrived callback.
                     self.on_fragment_arrived_callback(
-                        self.stream_name,
+                        self.kvs_stream_name,
                         fragment_bytes,
                         fragment_dom,
                         fragment_receive_duration,
@@ -228,8 +241,8 @@ class KvsConsumerLibrary(Thread):
             #############################################
             # call the on_stream_read_complete() callback and exit the
             # thread.
-            self.on_read_stream_complete_callback(self.stream_name)
+            self.on_read_stream_complete_callback(self.kvs_stream_name)
 
         except Exception as err:
             # Pass any exceptions to exception callback.
-            self.on_read_stream_exception(self.stream_name, err)
+            self.on_read_stream_exception(self.kvs_stream_name, err)

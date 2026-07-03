@@ -78,27 +78,10 @@ class KvsPythonConsumerExample:
         ####################################################
         # Start an instance of the KvsConsumerLibrary reading in a Kinesis Video Stream
 
-        # Get the KVS Endpoint for the GetMedia Call for this stream
-        log.info(f"Getting KVS GetMedia Endpoint for stream: {KVS_STREAM01_NAME} ........")
-        get_media_endpoint = self._get_data_endpoint(KVS_STREAM01_NAME, "GET_MEDIA")
-
-        # Get the KVS Media client for the GetMedia API call
-        log.info(f"Initializing KVS Media client for stream: {KVS_STREAM01_NAME}........")
-        kvs_media_client = self.session.client(
-            "kinesis-video-media", endpoint_url=get_media_endpoint
-        )
-
-        # Make a KVS GetMedia API call with the desired KVS stream and StartSelector type and time bounding.
-        log.info(f"Requesting KVS GetMedia Response for stream: {KVS_STREAM01_NAME}........")
-        get_media_response = kvs_media_client.get_media(
-            StreamName=KVS_STREAM01_NAME, StartSelector={"StartSelectorType": "EARLIEST"}
-        )
-
         # Initialize an instance of the KvsConsumerLibrary, provide the GetMedia response and the required call-backs
         log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM01_NAME}........")
         my_stream01_consumer = KvsConsumerLibrary(
             KVS_STREAM01_NAME,
-            get_media_response,
             self.on_fragment_arrived,
             self.on_stream_read_complete,
             self.on_stream_read_exception,
@@ -300,15 +283,6 @@ class KvsPythonConsumerExample:
         print(
             f"####### ERROR: Exception on read stream: {stream_name}\n####### Fragment Tags:\n{self.last_good_fragment_tags}\nError Message:{error}"
         )
-
-    ####################################################
-    # KVS Helpers
-    def _get_data_endpoint(self, stream_name, api_name):
-        """
-        Convenience method to get the KVS client endpoint for specific API calls.
-        """
-        response = self.kvs_client.get_data_endpoint(StreamName=stream_name, APIName=api_name)
-        return response["DataEndpoint"]
 
 
 if __name__ == "__main__":
