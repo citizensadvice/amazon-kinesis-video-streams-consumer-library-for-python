@@ -71,6 +71,7 @@ class KvsPythonConsumerExample:
         # Attach session specific configuration (such as the authentication pattern)
         self.session = boto3.Session(region_name=REGION)
         self.kvs_client = self.session.client("kinesisvideo")
+        self.stream_active = False
 
     ####################################################
     # Main process loop
@@ -89,6 +90,7 @@ class KvsPythonConsumerExample:
 
         # Start the instance of KvsConsumerLibrary, any matching fragments will begin arriving in the on_fragment_arrived callback
         my_stream01_consumer.start()
+        self.stream_active = True
 
         # Can create another instance of KvsConsumerLibrary on a different media stream or continue on to other application logic.
 
@@ -99,13 +101,14 @@ class KvsPythonConsumerExample:
 
         # Run a loop with the applications main functionality that holds the process open.
         # Can also use to monitor the completion of the KvsConsumerLibrary instance and trigger a required action on completion.
-        while True:
+        while self.stream_active:
             # Add Main process / application logic here while KvsConsumerLibrary instance runs as a thread
             log.info("Nothn to see, just doin main application stuff in a loop here!")
             time.sleep(5)
 
             # Call below to exit the streaming get_media() thread gracefully before reaching end of stream.
             # my_stream01_consumer.stop_thread()
+        log.info("Probably do some final processing of the last chunk section")
 
     ####################################################
     # KVS Consumer Library call-backs
@@ -247,6 +250,7 @@ class KvsPythonConsumerExample:
                 Name of the stream as set when the KvsConsumerLibrary thread triggering this callback was initiated.
                 Use this to identify a fragment when multiple streams are read from different instances of KvsConsumerLibrary to this callback.
         """
+        self.stream_active = False
 
         # Do something here to tell the application that reading from the stream ended gracefully.
         print(
@@ -278,6 +282,7 @@ class KvsPythonConsumerExample:
         #    'StartSelectorType': 'FRAGMENT_NUMBER',
         #    'AfterFragmentNumber': self.last_good_fragment_tags['AWS_KINESISVIDEO_CONTINUATION_TOKEN'],
         # }
+        self.stream_active = False
 
         # Here we just log the error
         print(
