@@ -20,7 +20,11 @@ class AudioFragment:
         return f"{self.frame_rate=} {self.sample_width=} {self.num_channels=} {self.rms=}"
 
 
-class StreamProcessor:
+class ResetFiles():
+    """ TODO: This will clear the directory of processed files at initialisation """
+    
+
+class StreamProcessor():
     audio_output_dir: Path = _root / 'compressions'
     audio_input_dir: Path = _root / 'audio_fragments'
 
@@ -137,7 +141,7 @@ class StreamProcessor:
         self._write_audio_out(self.to_client_fragments, 'to-client')
 
 
-sp = StreamProcessor()
+sp = StreamProcessor(20, 10)
 
 sp.process_input_fragments()
 for frag in sp.from_client_fragments:
