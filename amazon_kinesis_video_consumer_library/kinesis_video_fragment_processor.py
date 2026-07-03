@@ -133,9 +133,10 @@ class KvsFragementProcessor:
             A bytearray containing the raw audio data of the specified track
         """
 
+        header_size_in_bytes = 4
         if mkv_element.name == "SimpleBlock":
-            mkv_element.stream.seek(mkv_element.payloadOffset + 4)
-            return mkv_element.parse(mkv_element.stream, mkv_element.size - 4)
+            mkv_element.stream.seek(mkv_element.payloadOffset + header_size_in_bytes)
+            return mkv_element.parse(mkv_element.stream, mkv_element.size - header_size_in_bytes)
         return None
 
     def get_audio_track_number_from_simple_block(self, mkv_element: Document):
@@ -145,6 +146,7 @@ class KvsFragementProcessor:
 
         Will works only if track number VINT is one octet length as per:
         https://github.com/ietf-wg-cellar/matroska-specification/blob/master/notes.md
+        above leads nowhere. Try: https://datatracker.ietf.org/doc/rfc9559/
 
         ### Parameters:
             mkv_element: ebmlite.core.Document <ebmlite.core.MatroskaDocument>
