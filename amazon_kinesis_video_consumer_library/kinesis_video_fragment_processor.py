@@ -30,7 +30,7 @@ from ebmlite.decoding import decodeIntLength
 log = logging.getLogger(__name__)
 
 
-class KvsFragementProcessor:
+class KvsFragmentProcessor:
     ####################################################
     # Fragment processing functions
 

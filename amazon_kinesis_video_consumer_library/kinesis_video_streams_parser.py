@@ -4,42 +4,46 @@
 """
 Amazon Kinesis Video Stream (KVS) Consumer Library for Python.
 
-This library parses streaming bytes (chunks) made available by the StreamingBody returned from calls
-to the KVS Media Client GetMedia and KVS Archive Media Client GetMediaForFragmentList
-API.
+This library parses streaming bytes (chunks) made available by the
+StreamingBody returned from calls to the KVS Media Client GetMedia and
+KVS Archive Media Client GetMediaForFragmentList API.
 
-The Amazon Kinesis Video Stream (KVS) Consumer Library for Python reads in streaming bytes as they become
-available and parses to individual MKV fragments. The library is threaded and non-blocking,
-once a stream is being read it forwards received MKV fragments to named call-backs in the users application.
+The Amazon Kinesis Video Stream (KVS) Consumer Library for Python reads
+in streaming bytes as they become available and parses to individual MKV
+fragments. The library is threaded and non-blocking, once a stream is
+being read it forwards received MKV fragments to named call-backs in
+the users application.
 
-Fragments are returned as raw bytes and a searchable DOM like structure by parsing with EMBLite by MideTechnology.
+Fragments are returned as raw bytes and a searchable DOM like structure
+by parsing with EMBLite by MideTechnology.
 
-The consumer library provides the following functions to further process parsed MKV fragments:
-1) get_fragment_tags(): Extract MKV tags from the fragment.
-2) save_fragment_as_local_mkv(): Saves the fragment as stand-alone MKV file on local disk.
-3) get_frames_as_ndarray(): Returns a ratio of frames in the fragment as a list of NDArray objects.
-4) save_frames_as_jpeg(): Returns a ratio of frames in the fragment as a JPEGs to local disk.
+The consumer library provides the following functions to further process
+parsed MKV fragments:
+1) get_fragment_tags():
+        Extract MKV tags from the fragment.
+2) save_fragment_as_local_mkv():
+        Saves the fragment as stand-alone MKV file on local disk.
+3) get_frames_as_ndarray():
+        Returns a ratio of frames in the fragment as a list of NDArray
+        objects.
+4) save_frames_as_jpeg():
+        Returns a ratio of frames in the fragment as a JPEGs to local
+        disk.
 
 Workflow:
-1) Define a on_fragment_arrived and on_read_stream_complete call-backs in user application logic. These to process
-fragments as they are received and to handle the parser reaching the end of the stream. (When no more fragments are left),
+1) Define a on_fragment_arrived and on_read_stream_complete call-backs
+    in user application logic. These to process fragments as they are
+    received and to handle the parser reaching the end of the stream.
+    (When no more fragments are left),
 2) Initialize the KVS Media and / or Archive Media clients,
-3) Make a call to KVS Media GetMedia and / or KVS Archive Media GetMediaForFragmentList for the given stream,
-4) Initialize this KVS Consumer library and call get_streaming_fragements providing the response from the GetMedia
-or GetMediaForFragmentList call,
-5) Fragments will then be parsed and delivered to the call-backs for processing as per the example code provided.
-
-Credits:
-# EMBLite by MideTechnology is an external EBML parser found at https://github.com/MideTechnology/ebmlite
-# For convenance a slightly modified version of EMBLite is shipped with the KvsConsumerLibrary but adding credit where its due.
-# EMBLite MIT License: https://github.com/MideTechnology/ebmlite/blob/development/LICENSE
-
+3) Make a call to KVS Media GetMedia and / or KVS Archive Media
+    GetMediaForFragmentList for the given stream,
+4) Initialize this KVS Consumer library and call
+    get_streaming_fragements providing the response from the GetMedia or
+    GetMediaForFragmentList call,
+5) Fragments will then be parsed and delivered to the call-backs for
+    processing as per the example code provided.
 """
-
-__version__ = "0.0.1"
-__status__ = "Development"
-__copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
-__author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
 from time import perf_counter
 from io import BytesIO
@@ -53,7 +57,11 @@ from botocore.response import StreamingBody
 log = logging.getLogger(__name__)
 
 
-class KvsConsumerLibrary(Thread):
+class StreamAcquisitionError(Exception):
+    """Unable to acquire media stream from Kinesis Video Stream"""
+
+
+class KVSParser(Thread):
     def __init__(
         self,
         kvs_stream_name: str,
@@ -69,12 +77,12 @@ class KvsConsumerLibrary(Thread):
 
         # Init the local vars.
         self.kvs_stream_name = kvs_stream_name
-        log.info("Initilizing KvsConsumerLibrary...")
+        log.info("Initialising KVSParser...")
 
         self.on_fragment_arrived_callback = on_fragment_arrived
         self.on_read_stream_complete_callback = on_read_stream_complete
         self.on_read_stream_exception = on_read_stream_exception
-        self.__acquire_stream_buffer(kvs_stream_name)
+        self.kvs_streaming_buffer = self.__acquire_stream(kvs_stream_name)
 
         log.info("Loading EBMLlite MKV Schema....")
         self.schema = ebmlite.loadSchema("matroska.xml")
@@ -83,22 +91,39 @@ class KvsConsumerLibrary(Thread):
             raise KeyError("Could not find master element in Matroska schema")
         self.matroska_master_element_type = master
 
-    def __acquire_stream_buffer(self, kvs_stream_name: str):
+    def __acquire_stream(self, kvs_stream_name: str) -> StreamingBody:
+        """Using the name of the Kinesis Video Stream, this function
+        acquires a botocore.response.StreamingBody which can then stream
+        the data out of KVS"""
+        # First, we need a client for KVS
         session = Session(region_name='eu-west-2')
         kvs_client = session.client("kinesisvideo")
-        response = kvs_client.get_data_endpoint(
+
+        # Second, we need an endpoint for our specific stream
+        get_data_endpoint_response = kvs_client.get_data_endpoint(
             StreamName=kvs_stream_name,
             APIName="GET_MEDIA"
         )
-        get_media_endpoint = response["DataEndpoint"]
+        get_media_endpoint = get_data_endpoint_response.get("DataEndpoint")
+        if not get_media_endpoint:
+            raise StreamAcquisitionError("No data endpoint identified")
+
+        # Third, we can get a client representing our specific stream
         kvs_media_client = session.client(
             "kinesis-video-media", endpoint_url=get_media_endpoint
         )
+
+        # Fourth, we can initiate the streaming of data and pass back
+        # the streaming body
         get_media_response_object = kvs_media_client.get_media(
             StreamName=kvs_stream_name,
             StartSelector={"StartSelectorType": "EARLIEST"}
         )
-        self.kvs_streaming_buffer: StreamingBody = get_media_response_object["Payload"]
+        match get_media_response_object:
+            case {"Payload": streamer} if isinstance(streamer, StreamingBody):
+                return streamer
+            case _:
+                raise StreamAcquisitionError("No streaming body presented")
 
     def _get_ebml_header_elements(
         self, fragement_dom: ebmlite.Document
@@ -206,14 +231,16 @@ class KvsConsumerLibrary(Thread):
                         first_ebml_header_offset:second_ebml_header_offset
                     ]
 
-                    # Parse the complete fragment as EBML to a DOM like object
+                    # Parse the complete fragment as EBML to a DOM like
+                    # object
                     fragment_dom = self.schema.load(BytesIO(fragment_bytes), headers=True)
 
                     # Calculate duration taken receiving this fragment
                     # - just for telemetry of the streaming data.
                     fragment_receive_duration = perf_counter() - fragment_read_start_time
 
-                    # Forward fragment to the on_fragment_arrived callback.
+                    # Forward fragment to the on_fragment_arrived
+                    # callback.
                     self.on_fragment_arrived_callback(
                         self.kvs_stream_name,
                         fragment_bytes,
