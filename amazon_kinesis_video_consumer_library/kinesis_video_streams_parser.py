@@ -52,6 +52,7 @@ from threading import Thread
 import ebmlite
 from boto3 import Session
 from botocore.response import StreamingBody
+from .kinesis_video_stream_consumer import KVSConsumer
 
 # Init the logger.
 log = logging.getLogger(__name__)
@@ -65,9 +66,7 @@ class KVSParser(Thread):
     def __init__(
         self,
         kvs_stream_name: str,
-        on_fragment_arrived,
-        on_read_stream_complete,
-        on_read_stream_exception,
+        consumer: KVSConsumer,
     ):
         # Call the Thread class's init function
         super().__init__()
@@ -78,10 +77,7 @@ class KVSParser(Thread):
         # Init the local vars.
         self.kvs_stream_name = kvs_stream_name
         log.info("Initialising KVSParser...")
-
-        self.on_fragment_arrived_callback = on_fragment_arrived
-        self.on_read_stream_complete_callback = on_read_stream_complete
-        self.on_read_stream_exception = on_read_stream_exception
+        self.consumer = consumer
         self.kvs_streaming_buffer = self.__acquire_stream(kvs_stream_name)
 
         log.info("Loading EBMLlite MKV Schema....")
@@ -241,11 +237,11 @@ class KVSParser(Thread):
 
                     # Forward fragment to the on_fragment_arrived
                     # callback.
-                    self.on_fragment_arrived_callback(
-                        self.kvs_stream_name,
-                        fragment_bytes,
-                        fragment_dom,
-                        fragment_receive_duration,
+                    self.consumer.on_fragment_arrived(
+                        stream_name=self.kvs_stream_name,
+                        fragment_bytes=fragment_bytes,
+                        fragment_dom=fragment_dom,
+                        time_taken_to_fetch_frag=fragment_receive_duration
                     )
 
                     # Remove the processed MKV segment from the raw byte
@@ -268,8 +264,13 @@ class KVSParser(Thread):
             #############################################
             # call the on_stream_read_complete() callback and exit the
             # thread.
-            self.on_read_stream_complete_callback(self.kvs_stream_name)
+            self.consumer.on_stream_read_complete(
+                stream_name=self.kvs_stream_name,
+            )
 
         except Exception as err:
             # Pass any exceptions to exception callback.
-            self.on_read_stream_exception(self.kvs_stream_name, err)
+            self.consumer.on_stream_read_exception(
+                stream_name=self.kvs_stream_name,
+                error=err
+            )

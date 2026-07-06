@@ -82,10 +82,8 @@ class KvsPythonConsumerExample:
         # GetMedia response and the required call-backs
         log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM01_NAME}........")
         my_stream01_consumer = KVSParser(
-            KVS_STREAM01_NAME,
-            self.on_fragment_arrived,
-            self.on_stream_read_complete,
-            self.on_stream_read_exception,
+            kvs_stream_name=KVS_STREAM01_NAME,
+            consumer=self
         )
 
         my_stream01_consumer.start()
@@ -149,11 +147,11 @@ class KvsPythonConsumerExample:
         log.info(f"Read Media on stream: {stream_name} Completed successfully")
         log.info(f"Last Fragment Tags: {self.last_good_fragment_tags}")
 
-    def on_stream_read_exception(self, stream_name, error):
+    def on_stream_read_exception(self, stream_name, exc):
         self.stream_active = False
         # Here we just log the error
         print(
-            f"####### ERROR: Exception on read stream: {stream_name}\n####### Fragment Tags:\n{self.last_good_fragment_tags}\nError Message:{error}"
+            f"####### ERROR: Exception on read stream: {stream_name}\n####### Fragment Tags:\n{self.last_good_fragment_tags}\nError Message:{exc}"
         )
 
 
