@@ -22,6 +22,7 @@ from ebmlite.util import pprint as ebmpprint
 from ebmlite import (
     Document,
     loadSchema,
+    Element,
 )
 from ebmlite.decoding import decodeIntLength
 
@@ -37,7 +38,7 @@ class KvsFragmentProcessor:
     def __init__(self):
         self.matroska_elements = loadSchema("matroska.xml").elementsByName
 
-    def get_fragment_tags(self, fragment_dom: Document):
+    def get_fragment_tags(self, fragment_dom: Document) -> dict:
         """
         Parses a MKV Fragment Doc (of type
         ebmlite.core.MatroskaDocument) that is returned to the provided
@@ -60,7 +61,7 @@ class KvsFragmentProcessor:
         # Get the Segment Element of the Fragment DOM - error if not found
         segment_element = None
         for element in fragment_dom:
-            if isinstance(element, self.matroska_elements["Segment"]):
+            if element.name == "Segment":
                 segment_element = element
                 break
 
@@ -70,11 +71,11 @@ class KvsFragmentProcessor:
         # Save all of the SimpleTag elements in the Segment element
         simple_tag_elements = []
         for element in segment_element:
-            if isinstance(element, self.matroska_elements["Tags"]):
+            if element.name == "Tags":
                 for tags in element:
-                    if isinstance(tags, self.matroska_elements["Tag"]):
+                    if tags.name == "Tag":
                         for tag_type in tags:
-                            if isinstance(tag_type, self.matroska_elements["SimpleTag"]):
+                            if tag_type.name == "SimpleTag":
                                 simple_tag_elements.append(tag_type)
 
         # For all SimpleTags types (ID: 0x67C8), save for TagName (ID: 0x7373) and values of TagString (ID:0x4487) or TagBinary (ID: 0x4485 )
@@ -83,11 +84,9 @@ class KvsFragmentProcessor:
             tag_name = None
             tag_value = None
             for element in simple_tag:
-                if isinstance(element, self.matroska_elements["TagName"]):
+                if element.name == "TagName":
                     tag_name = element.value
-                elif isinstance(element, self.matroska_elements["TagString"]) or isinstance(
-                    element, self.matroska_elements["TagBinary"]
-                ):
+                elif element.name == "TagString" or element.name == "TagBinary":
                     tag_value = element.value
 
             # As long as tag name was found add the Tag to the return dict.
@@ -96,26 +95,12 @@ class KvsFragmentProcessor:
 
         return simple_tags_dict
 
-    def get_fragement_dom_pretty_string(self, fragment_dom: Document):
-        """
-        Returns the Pretty Print parsing of the EBMLite fragment DOM as a string
-
-        ### Parameters:
-
-            **fragment_dom**: ebmlite.core.Document <ebmlite.core.MatroskaDocument>
-                The DOM like structure describing the fragment parsed by EBMLite.
-
-        ### Return:
-            **pretty_print_str**: str
-                Pretty print string of the Fragment DOM object
-        """
-
+    def get_fragment_dom_pretty_string(self, fragment_dom: Document) -> str:
         pretty_print_str = io.StringIO()
-
         ebmpprint(fragment_dom, out=pretty_print_str)
         return pretty_print_str.getvalue()
 
-    def get_raw_audio_track_from_simple_block(self, mkv_element: Document):
+    def get_raw_audio_track_from_simple_block(self, mkv_element: Element) -> None | bytearray:
         """
         This function gets the raw audio track from a SimpleBlock element
         in a Matroska file from Amazon Connect.
@@ -133,6 +118,8 @@ class KvsFragmentProcessor:
             A bytearray containing the raw audio data of the specified track
         """
 
+        # TODO: cleaner removal of VINT - it's actually super easy
+        # TODO:     looking, you just need to know how
         header_size_in_bytes = 4
         if mkv_element.name == "SimpleBlock":
             mkv_element.stream.seek(mkv_element.payloadOffset + header_size_in_bytes)
@@ -164,7 +151,10 @@ class KvsFragmentProcessor:
                 """
                 removing VINT_MARKER as per https://datatracker.ietf.org/doc/rfc8794/ paragraph 4
                 """
-                track_nr = ord(ch) & 127
+
+                # TODO: cleaner removal of VINT - it's actually super
+                # TODO:     easy looking, you just need to know how
+                track_nr = ord(ch) & 127  # Done via bitmask here
 
                 return track_nr
         return None
@@ -202,13 +192,13 @@ class KvsFragmentProcessor:
                             )
                             i += 1
                             if track_nr == simple_block_track_nr:
-                                track_bytearray.extend(
-                                    self.get_raw_audio_track_from_simple_block(cluster_child)
-                                )
+                                array = self.get_raw_audio_track_from_simple_block(cluster_child)
+                                if array:
+                                    track_bytearray.extend(array)
 
         return track_bytearray
 
-    def get_track_number_by_name(self, fragment_dom, track_name):
+    def get_track_number_by_name(self, fragment_dom: Document, track_name: str):
         """
         This function gets the track number from a Amazon Connect Matroska fragment
         by track name.
