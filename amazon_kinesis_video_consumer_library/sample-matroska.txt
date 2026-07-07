@@ -1,0 +1,137 @@
+Offset Size   Element (ID): Value
+====== ====== =================================
+     0  34768  MatroskaDocument (Document, type matroska)
+     0     35    EBML (ID 0x1A45DFA3): (master) 7 subelements
+     5      1      EBMLVersion (ID 0x4286): (int) 1
+     9      1      EBMLReadVersion (ID 0x42F7): (int) 1
+    13      1      EBMLMaxIDLength (ID 0x42F2): (int) 4
+    17      1      EBMLMaxSizeLength (ID 0x42F3): (int) 8
+    21      8      DocType (ID 0x4282): (str) 'matroska'
+    32      1      DocTypeVersion (ID 0x4287): (int) 2
+    36      1      DocTypeReadVersion (ID 0x4285): (int) 2
+    40  34716    Segment (ID 0x18538067): (master) 15 subelements
+    52    119      Info (ID 0x1549A966): (master) 5 subelements
+    58     16        SegmentUID (ID 0x73A4): (bytearray)
+    77      8        TimecodeScale (ID 0x2AD7B1): (int) 1000000
+    89     17        Title (ID 0x7BA9): (str) 'Kinesis Video SDK'
+   109     31        MuxingApp (ID 0x4D80): (str) 'Kinesis Video SDK 1.1.0 JNI 2.0'
+   143     31        WritingApp (ID 0x5741): (str) 'Kinesis Video SDK 1.1.0 JNI 2.0'
+   177    110      Tracks (ID 0x1654AE6B): (master) 2 subelements
+   185     49        TrackEntry (ID 0xAE): (master) 6 subelements
+   190      1          TrackNumber (ID 0xD7): (int) 1
+   193      8          TrackUID (ID 0x73C5): (int) 2
+   204      1          TrackType (ID 0x83): (int) 2
+   207     17          Name (ID 0x536E): (str) 'AUDIO_TO_CUSTOMER'
+   227      5          CodecID (ID 0x86): (str) 'A_AAC'
+   234      2          CodecPrivate (ID 0x63A2): (bytearray)
+   239     51        TrackEntry (ID 0xAE): (master) 6 subelements
+   244      1          TrackNumber (ID 0xD7): (int) 2
+   247      8          TrackUID (ID 0x73C5): (int) 1
+   258      1          TrackType (ID 0x83): (int) 2
+   261     19          Name (ID 0x536E): (str) 'AUDIO_FROM_CUSTOMER'
+   283      5          CodecID (ID 0x86): (str) 'A_AAC'
+   290      2          CodecPrivate (ID 0x63A2): (bytearray)
+   295     85      Tags (ID 0x1254C367): (master) 1 subelements
+   307     75        Tag (ID 0x7373): (master) 1 subelements
+   317     65          SimpleTag (ID 0x67C8): (master) 2 subelements
+   327      9            TagName (ID 0x45A3): (str) 'ContactId'
+   346     36            TagString (ID 0x4487): (str) '87718f4a-d2ed-476a-ad11-f496ab09b3f8'
+   392     86      Tags (ID 0x1254C367): (master) 1 subelements
+   404     76        Tag (ID 0x7373): (master) 1 subelements
+   414     66          SimpleTag (ID 0x67C8): (master) 2 subelements
+   424     10            TagName (ID 0x45A3): (str) 'InstanceId'
+   444     36            TagString (ID 0x4487): (str) '3087be6e-771a-48a8-90da-93b5326a43a1'
+   490     79      Tags (ID 0x1254C367): (master) 1 subelements
+   502     69        Tag (ID 0x7373): (master) 1 subelements
+   512     59          SimpleTag (ID 0x67C8): (master) 2 subelements
+   522      8            TagName (ID 0x45A3): (str) 'MimeType'
+   540     31            TagString (ID 0x4487): (str) 'audio/L16;rate=8000;channels=1;'
+   581     58      Tags (ID 0x1254C367): (master) 1 subelements
+   593     48        Tag (ID 0x7373): (master) 1 subelements
+   603     38          SimpleTag (ID 0x67C8): (master) 2 subelements
+   613     17            TagName (ID 0x45A3): (str) 'AUDIO_TO_CUSTOMER'
+   640      1            TagString (ID 0x4487): (str) '2'
+   651     60      Tags (ID 0x1254C367): (master) 1 subelements
+   663     50        Tag (ID 0x7373): (master) 1 subelements
+   673     40          SimpleTag (ID 0x67C8): (master) 2 subelements
+   683     19            TagName (ID 0x45A3): (str) 'AUDIO_FROM_CUSTOMER'
+   712      1            TagString (ID 0x4487): (str) '1'
+   723    235      Tags (ID 0x1254C367): (master) 1 subelements
+   731    229        Tag (ID 0x7373): (master) 3 subelements
+   737     91          SimpleTag (ID 0x67C8): (master) 2 subelements
+   743     32            TagName (ID 0x45A3): (str) 'AWS_KINESISVIDEO_FRAGMENT_NUMBER'
+   781     47            TagString (ID 0x4487): (str) '91343852333181551234925834077012571618243808844'
+   834     59          SimpleTag (ID 0x67C8): (master) 2 subelements
+   840     33            TagName (ID 0x45A3): (str) 'AWS_KINESISVIDEO_SERVER_TIMESTAMP'
+   879     14            TagString (ID 0x4487): (str) '1782912654.706'
+   899     61          SimpleTag (ID 0x67C8): (master) 2 subelements
+   905     35            TagName (ID 0x45A3): (str) 'AWS_KINESISVIDEO_PRODUCER_TIMESTAMP'
+   946     14            TagString (ID 0x4487): (str) '1782912654.536'
+   966  33197      Cluster (ID 0x1F43B675): (master) 34 subelements
+   971      8        Timecode (ID 0xE7): (int) 1782912654536
+   981      1        Position (ID 0xA7): (int) 0
+   984   1028        SimpleBlock (ID 0xA3): (bytearray)
+  2021   1028        SimpleBlock (ID 0xA3): (bytearray)
+  3058   1028        SimpleBlock (ID 0xA3): (bytearray)
+  4095   1028        SimpleBlock (ID 0xA3): (bytearray)
+  5132   1028        SimpleBlock (ID 0xA3): (bytearray)
+  6169   1028        SimpleBlock (ID 0xA3): (bytearray)
+  7206   1028        SimpleBlock (ID 0xA3): (bytearray)
+  8243   1028        SimpleBlock (ID 0xA3): (bytearray)
+  9280   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 10317   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 11354   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 12391   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 13428   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 14465   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 15502   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 16539   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 17576   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 18613   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 19650   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 20687   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 21724   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 22761   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 23798   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 24835   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 25872   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 26909   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 27946   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 28983   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 30020   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 31057   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 32094   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 33131   1028        SimpleBlock (ID 0xA3): (bytearray)
+ 34168     85      Tags (ID 0x1254C367): (master) 1 subelements
+ 34180     75        Tag (ID 0x7373): (master) 1 subelements
+ 34190     65          SimpleTag (ID 0x67C8): (master) 2 subelements
+ 34200      9            TagName (ID 0x45A3): (str) 'ContactId'
+ 34219     36            TagString (ID 0x4487): (str) '87718f4a-d2ed-476a-ad11-f496ab09b3f8'
+ 34265     86      Tags (ID 0x1254C367): (master) 1 subelements
+ 34277     76        Tag (ID 0x7373): (master) 1 subelements
+ 34287     66          SimpleTag (ID 0x67C8): (master) 2 subelements
+ 34297     10            TagName (ID 0x45A3): (str) 'InstanceId'
+ 34317     36            TagString (ID 0x4487): (str) '3087be6e-771a-48a8-90da-93b5326a43a1'
+ 34363     79      Tags (ID 0x1254C367): (master) 1 subelements
+ 34375     69        Tag (ID 0x7373): (master) 1 subelements
+ 34385     59          SimpleTag (ID 0x67C8): (master) 2 subelements
+ 34395      8            TagName (ID 0x45A3): (str) 'MimeType'
+ 34413     31            TagString (ID 0x4487): (str) 'audio/L16;rate=8000;channels=1;'
+ 34454     58      Tags (ID 0x1254C367): (master) 1 subelements
+ 34466     48        Tag (ID 0x7373): (master) 1 subelements
+ 34476     38          SimpleTag (ID 0x67C8): (master) 2 subelements
+ 34486     17            TagName (ID 0x45A3): (str) 'AUDIO_TO_CUSTOMER'
+ 34513      1            TagString (ID 0x4487): (str) '2'
+ 34524     60      Tags (ID 0x1254C367): (master) 1 subelements
+ 34536     50        Tag (ID 0x7373): (master) 1 subelements
+ 34546     40          SimpleTag (ID 0x67C8): (master) 2 subelements
+ 34556     19            TagName (ID 0x45A3): (str) 'AUDIO_FROM_CUSTOMER'
+ 34585      1            TagString (ID 0x4487): (str) '1'
+ 34596    164      Tags (ID 0x1254C367): (master) 1 subelements
+ 34604    158        Tag (ID 0x7373): (master) 2 subelements
+ 34610     52          SimpleTag (ID 0x67C8): (master) 2 subelements
+ 34616     34            TagName (ID 0x45A3): (str) 'AWS_KINESISVIDEO_MILLIS_BEHIND_NOW'
+ 34656      6            TagString (ID 0x4487): (str) '131207'
+ 34668     94          SimpleTag (ID 0x67C8): (master) 2 subelements
+ 34674     35            TagName (ID 0x45A3): (str) 'AWS_KINESISVIDEO_CONTINUATION_TOKEN'
+ 34715     47            TagString (ID 0x4487): (str) '91343852333181551234925834077012571618243808844'
