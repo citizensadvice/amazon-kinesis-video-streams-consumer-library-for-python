@@ -12,7 +12,6 @@ __author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
 import os
 import time
-from typing import Protocol
 import boto3
 from sys import argv
 from pathlib import Path
@@ -74,12 +73,6 @@ class KvsPythonConsumerExample:
     ####################################################
     # Main process loop
     def service_loop(self):
-        ####################################################
-        # Start an instance of the KvsConsumerLibrary reading in a
-        # Kinesis Video Stream
-
-        # Initialize an instance of the KvsConsumerLibrary, provide the
-        # GetMedia response and the required call-backs
         log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM01_NAME}........")
         my_stream01_consumer = KVSParser(
             kvs_stream_name=KVS_STREAM01_NAME,
@@ -90,15 +83,8 @@ class KvsPythonConsumerExample:
         self.stream_active = True
 
         while self.stream_active:
-            # Add Main process / application logic here while
-            # KvsConsumerLibrary instance runs as a thread
             log.info("I could be dispatching chunks of data or something")
             time.sleep(5)
-
-            # Call below to exit the streaming get_media() thread
-            # gracefully before reaching end of stream.
-
-            # my_stream01_consumer.stop_thread()
         log.info("Probably do some final processing of the last chunk section")
 
     ####################################################
@@ -140,9 +126,6 @@ class KvsPythonConsumerExample:
             log.exception("on_fragment_arrived Error")
 
     def on_stream_read_complete(self, stream_name):
-
-        # Do something here to tell the application that reading from
-        # the stream ended gracefully.
         self.stream_active = False
         log.info(f"Read Media on stream: {stream_name} Completed successfully")
         log.info(f"Last Fragment Tags: {self.last_good_fragment_tags}")
