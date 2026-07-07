@@ -20,14 +20,14 @@ class AudioFragment:
         return f"{self.frame_rate=} {self.sample_width=} {self.num_channels=} {self.rms=}"
 
 
-class StreamProcessor:
+class AudioFragmentProcessor:
     audio_output_dir: Path = _root / 'compressions'
     audio_input_dir: Path = _root / 'audio_fragments'
 
     def __init__(
             self,
+            min_chunk_length: int = 90,
             max_chunk_length: int = 120,
-            min_chunk_length: int = 90
     ):
         """max length is maximum number of audio fragments to constitute
         a audio chunk, min length is the minimum. It is important to
@@ -36,7 +36,7 @@ class StreamProcessor:
         self.to_client_fragments: list[AudioFragment] = []
         self.from_client_fragments: list[AudioFragment] = []
         self.max_chunk_size = max_chunk_length
-        self.window_size = max_chunk_length - min_chunk_length
+        self.min_chunk_size = min_chunk_length
 
     def ready_output_dir(self):
         if not self.audio_output_dir.is_dir():
@@ -97,23 +97,22 @@ class StreamProcessor:
 
                 # Assume last fragment is quietest
                 min_rms = chunk_buffer[-1].rms
-                min_rms_pos_from_end = 1
-                # loop fragments in window
-                reversed_window = chunk_buffer[
-                    -1:                 # starting from end
-                    -self.window_size:  # ending window size from end
-                    -1                  # going backwards
+                min_rms_pos = len(chunk_buffer) - 1
+                # open up window in which we may make slice
+                slice_window = chunk_buffer[
+                    self.min_chunk_size:    # start at min chunk size
+                    self.max_chunk_size     # end at max chunk size
                 ]
-                for frag_pos, frag in enumerate(reversed_window):
+                # loop fragments in window
+                for frag_pos_in_window, frag in enumerate(slice_window):
                     if frag.rms < min_rms:
                         min_rms = frag.rms
-                        min_rms_pos_from_end = frag_pos + 1
-                min_rms_idx = -min_rms_pos_from_end
+                        min_rms_pos = self.min_chunk_size + frag_pos_in_window
 
                 # Acquire what we want to write
-                to_write = chunk_buffer[:min_rms_idx]
+                to_write = chunk_buffer[:min_rms_pos]
                 # Remove what we want to write from buffer
-                chunk_buffer = chunk_buffer[min_rms_idx:]
+                chunk_buffer = chunk_buffer[min_rms_pos:]
                 self._write_chunk(to_write, label, chunk_num)
         # Write whatever remains in buffer
         self._write_chunk(chunk_buffer, label, chunk_num + 1)
@@ -137,7 +136,7 @@ class StreamProcessor:
         self._write_audio_out(self.to_client_fragments, 'to-client')
 
 
-sp = StreamProcessor()
+sp = AudioFragmentProcessor()
 
 sp.process_input_fragments()
 for frag in sp.from_client_fragments:
