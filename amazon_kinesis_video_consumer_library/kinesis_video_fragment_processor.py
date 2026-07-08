@@ -23,6 +23,7 @@ from ebmlite import (
     Document,
     loadSchema,
     Element,
+    MasterElement,
 )
 from ebmlite.decoding import decodeIntLength
 
@@ -69,7 +70,7 @@ class KvsFragmentProcessor:
             raise KeyError("Segment Element required but not found in fragment_doc")
 
         # Save all of the SimpleTag elements in the Segment element
-        simple_tag_elements = []
+        simple_tag_elements: list[MasterElement] = []
         for element in segment_element:
             if element.name == "Tags":
                 for tags in element:
