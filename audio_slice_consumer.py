@@ -1,3 +1,5 @@
+"""This module defines a consumer of the KVSConsumer protocol"""
+
 from dataclasses import dataclass
 from math import sqrt
 from io import BytesIO
@@ -20,6 +22,7 @@ _ROOT = Path(__file__).parent
 
 @dataclass
 class AudioFragment:
+    """Represents a fragment of audio retrieved from a KVS Stream"""
     raw_bytes: bytes
     frame_rate: int
     sample_width: int
@@ -33,6 +36,8 @@ class AudioFragment:
 
 
 class SliceConsumer:
+    """Based on the KVSConsumer protocol, this class can receive and
+    dispatch chunks of audio in real time"""
     dispatched_audio_dir: Path = _ROOT / 'dispatches'
 
     def __init__(
@@ -59,6 +64,8 @@ class SliceConsumer:
 
     @staticmethod
     def audio_loudness(audio: BytesIO) -> float:
+        """calculates the root mean square of a audio fragment i.e.
+        absolute loudness"""
         audio.seek(0)
         y, _ = librosa.load(audio, sr=None)
         # Calculate RMS energy for the entire signal
@@ -73,6 +80,9 @@ class SliceConsumer:
         fragment_dom: Document,
         time_taken_to_fetch_frag: float
     ):
+        """part of KVSConsumer protocol, handles incoming audio
+        fragments and dispatching audio chunks when enough fragments
+        arrive"""
         frag_num = self.processor.get_fragment_tags(fragment_dom)[
                 "AWS_KINESISVIDEO_FRAGMENT_NUMBER"
             ]
@@ -109,6 +119,8 @@ class SliceConsumer:
             self,
             stream_name: str
     ):
+        """part of KVSConsumer protocol, dispatches remaining chunks
+        when stream read completes"""
         self._dispatch_remaining()
 
     def on_stream_read_exception(
@@ -116,10 +128,13 @@ class SliceConsumer:
             stream_name: str,
             exc: Exception
     ):
+        """part of KVSConsumer protocol, dispatches remaining chunks
+        when stream read fails"""
         print(repr(exc))
         self._dispatch_remaining()
 
     def _dispatch_remaining(self):
+        """private method to flush remaining fragments into dispatch"""
         # Need to simply dispatch the last of the audio fragments that
         # weren't chunked up previously
         self.to_client_chunk_number += 1
@@ -133,6 +148,9 @@ class SliceConsumer:
             self,
             fragments: list[AudioFragment]
     ) -> tuple[list[AudioFragment] | None, list[AudioFragment]]:
+        """splits large list of fragments into a chunk and the remaining
+        fragments, the slice is based on the quietest period in the
+        min/max chunk size window"""
         chunk = None
         buffer = fragments.copy()
         if len(buffer) >= self.max_chunk_size:
@@ -161,6 +179,7 @@ class SliceConsumer:
             fragments: list[AudioFragment],
             label: str
     ):
+        """sends a chunk to whatever destination"""
         self._write_chunk_to_disk(
             chunk=fragments,
             label=label,
@@ -171,6 +190,7 @@ class SliceConsumer:
             fragment_dom: Document,
             track_name: str
     ) -> AudioFragment:
+        """extracts a single channel of audio from the EBML DOM"""
         frag_num = self.processor.get_fragment_tags(fragment_dom)[
                 "AWS_KINESISVIDEO_FRAGMENT_NUMBER"
             ]
@@ -199,6 +219,8 @@ class SliceConsumer:
         )
 
     def _ready_output_dir(self):
+        """private method to ensure that the directory we write to disk
+        in exists before we try"""
         if not self.dispatched_audio_dir.is_dir():
             self.dispatched_audio_dir.unlink(missing_ok=True)
             self.dispatched_audio_dir.mkdir()
@@ -208,6 +230,8 @@ class SliceConsumer:
             chunk: list[AudioFragment],
             label: str,
     ):
+        """one dispatch method which dispatches chunks of audio to
+        disk"""
         self._ready_output_dir()
         audio_bytes = bytes()
         if not chunk:
