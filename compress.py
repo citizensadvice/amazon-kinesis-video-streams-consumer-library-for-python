@@ -17,7 +17,8 @@ class AudioFragment:
     rms: float
 
     def __str__(self):
-        return f"{self.frame_rate=} {self.sample_width=} {self.num_channels=} {self.rms=}"
+        details = f"{self.frame_rate=} {self.sample_width=} {self.num_channels=} {self.rms=}"
+        return f"{hash(details)} - {details}"
 
 
 class AudioFragmentProcessor:
@@ -136,7 +137,10 @@ class AudioFragmentProcessor:
         self._write_audio_out(self.to_client_fragments, 'to-client')
 
 
-sp = AudioFragmentProcessor()
+sp = AudioFragmentProcessor(
+    min_chunk_length=10,
+    max_chunk_length=25
+)
 
 sp.process_input_fragments()
 for frag in sp.from_client_fragments:

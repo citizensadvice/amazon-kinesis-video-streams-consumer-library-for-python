@@ -16,6 +16,7 @@ import boto3
 from sys import argv
 from pathlib import Path
 import ebmlite
+from logging import getLogger
 
 from amazon_kinesis_video_consumer_library.kinesis_video_streams_parser import (
     KVSParser,
@@ -23,11 +24,13 @@ from amazon_kinesis_video_consumer_library.kinesis_video_streams_parser import (
 from amazon_kinesis_video_consumer_library.kinesis_video_fragment_processor import (
     KvsFragmentProcessor,
 )
+from audio_slice_consumer import SliceConsumer
+from custom_logging import set_up_root_logger_output
 
-from custom_logging import get_full_logger
+
+log = getLogger(__name__)
 
 
-log = get_full_logger(__name__)
 # Ensure directory for audio fragments
 root = Path(__file__).parent
 audio_path = root / "audio_fragments"
@@ -74,9 +77,14 @@ class KvsPythonConsumerExample:
     # Main process loop
     def service_loop(self):
         log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM01_NAME}........")
+        consumer = SliceConsumer(
+            min_chunk_length=10,
+            max_chunk_length=25,
+        )
         my_stream01_consumer = KVSParser(
             kvs_stream_name=KVS_STREAM01_NAME,
-            consumer=self
+            consumer=consumer
+            # consumer=self
         )
 
         my_stream01_consumer.start()
@@ -142,6 +150,7 @@ if __name__ == "__main__":
     """
     Main method for example KvsConsumerLibrary
     """
+    set_up_root_logger_output()
 
     kvsConsumerExample = KvsPythonConsumerExample()
     kvsConsumerExample.service_loop()

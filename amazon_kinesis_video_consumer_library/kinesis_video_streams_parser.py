@@ -272,5 +272,5 @@ class KVSParser(Thread):
             # Pass any exceptions to exception callback.
             self.consumer.on_stream_read_exception(
                 stream_name=self.kvs_stream_name,
-                error=err
+                exc=err
             )
