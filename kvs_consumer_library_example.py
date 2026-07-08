@@ -78,8 +78,8 @@ class KvsPythonConsumerExample:
     def service_loop(self):
         log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM01_NAME}........")
         consumer = SliceConsumer(
-            min_chunk_length=10,
-            max_chunk_length=45,
+            min_chunk_length=30,
+            max_chunk_length=120,
         )
         my_stream01_consumer = KVSParser(
             kvs_stream_name=KVS_STREAM01_NAME,

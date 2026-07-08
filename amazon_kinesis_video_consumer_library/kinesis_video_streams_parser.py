@@ -113,6 +113,12 @@ class KVSParser(Thread):
         # the streaming body
         get_media_response_object = kvs_media_client.get_media(
             StreamName=kvs_stream_name,
+            # TODO: start selector can't be earliest as quick end of one
+            # TODO: ...chat and start of another can result in multiple
+            # TODO: ...conversations being on one stream (i.e. stream
+            # TODO: ...reuse). Must obey start fragment selector.
+            # N.B. This could cause problems with over reading and
+            # reading the next audio stream.
             StartSelector={"StartSelectorType": "EARLIEST"}
         )
         match get_media_response_object:
