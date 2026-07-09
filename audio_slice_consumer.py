@@ -34,6 +34,12 @@ class AudioFragment:
         details = f"{self.frame_rate=} {self.sample_width=} {self.num_channels=} {self.rms=}"
         return f"{hash(details)} - {details}"
 
+    def size_in_mb(self) -> float:
+        # Check if attr set, if not set it
+        if not hasattr(self, 'bytes_in_mb'):
+            self.bytes_in_mb = 1 << 20
+        return len(self.raw_bytes) / self.bytes_in_mb
+
 
 class SliceConsumer:
     """Based on the KVSConsumer protocol, this class can receive and
@@ -57,11 +63,6 @@ class SliceConsumer:
         self.min_chunk_size = min_chunk_length
         self.processor = KvsFragmentProcessor()
 
-        # TODO: get shot of this and do timestamp relative to
-        # TODO: ...conversation start
-        self.to_client_chunk_number = 0
-        self.from_client_chunk_number = 0
-
     @staticmethod
     def audio_loudness(audio: BytesIO) -> float:
         """calculates the root mean square of a audio fragment i.e.
@@ -83,6 +84,8 @@ class SliceConsumer:
         """part of KVSConsumer protocol, handles incoming audio
         fragments and dispatching audio chunks when enough fragments
         arrive"""
+        # TODO: get shot of this and do timestamp relative to
+        # TODO: ...conversation start instead of frag num
         frag_num = self.processor.get_fragment_tags(fragment_dom)[
                 "AWS_KINESISVIDEO_FRAGMENT_NUMBER"
             ]
@@ -244,6 +247,8 @@ class SliceConsumer:
         frame_rate = chunk[0].frame_rate
         audio_file_path = str(self.dispatched_audio_dir / f"{label}-{frag_num}.wav")
         log.info(f"writing: {audio_file_path!r}")
+        bytes_in_mb = 2 ** 20
+        log.info(f"Estimate {len(audio_bytes) / bytes_in_mb}Mb for {audio_file_path}")
         with wave.open(audio_file_path, mode="w") as f:
             f.setnchannels(num_channels)
             f.setsampwidth(sample_width)
