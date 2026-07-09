@@ -34,11 +34,11 @@ class AudioFragment:
         details = f"{self.frame_rate=} {self.sample_width=} {self.num_channels=} {self.rms=}"
         return f"{hash(details)} - {details}"
 
-    def size_in_mb(self) -> float:
+    def size_in_kb(self) -> float:
         # Check if attr set, if not set it
-        if not hasattr(self, 'bytes_in_mb'):
-            self.bytes_in_mb = 1 << 20
-        return len(self.raw_bytes) / self.bytes_in_mb
+        if not hasattr(self, 'bytes_in_kb'):
+            self.bytes_in_kb = 1 << 10
+        return len(self.raw_bytes) / self.bytes_in_kb
 
 
 class SliceConsumer:
@@ -48,18 +48,18 @@ class SliceConsumer:
 
     def __init__(
             self,
-            min_chunk_size_in_mb: float = 90.0,
-            max_chunk_size_in_mb: float = 180.0,
+            min_chunk_size_in_kb: float = 90.0,
+            max_chunk_size_in_kb: float = 200.0,
     ):
         """min/max chunk size refers to dispatched audio chunks. It is
         important to have a generous difference to allow as wide a
         window as possible for detection of a quiet period."""
-        if min_chunk_size_in_mb > max_chunk_size_in_mb:
+        if min_chunk_size_in_kb > max_chunk_size_in_kb:
             raise ValueError("min chunk length must be less than max")
         self.to_client_fragments: list[AudioFragment] = []
         self.from_client_fragments: list[AudioFragment] = []
-        self.min_chunk_size_in_mb = min_chunk_size_in_mb
-        self.max_chunk_size_in_mb = max_chunk_size_in_mb
+        self.min_chunk_size_in_kb = min_chunk_size_in_kb
+        self.max_chunk_size_in_kb = max_chunk_size_in_kb
         self.processor = KvsFragmentProcessor()
 
     @staticmethod
@@ -151,7 +151,7 @@ class SliceConsumer:
         min/max chunk size window"""
         # First double check if fragments are large enough to chunk
         # if not, return no chunk and original fragments
-        if sum([frag.size_in_mb() for frag in fragments]) < self.max_chunk_size_in_mb:
+        if sum([frag.size_in_kb() for frag in fragments]) < self.max_chunk_size_in_kb:
             return None, fragments
 
         # Here we chunk off some fragments, starting by making a copy
@@ -168,14 +168,14 @@ class SliceConsumer:
         max_window_pos = None
         total_buffer_size_so_far = 0
         for idx_of_frag, fragment in enumerate(buffer):
-            total_buffer_size_so_far += fragment.size_in_mb()
+            total_buffer_size_so_far += fragment.size_in_kb()
             if (
-                total_buffer_size_so_far > self.min_chunk_size_in_mb
+                total_buffer_size_so_far > self.min_chunk_size_in_kb
                 and min_window_pos is None
             ):
                 min_window_pos = idx_of_frag
             if (
-                total_buffer_size_so_far >= self.max_chunk_size_in_mb
+                total_buffer_size_so_far >= self.max_chunk_size_in_kb
                 and max_window_pos is None
             ):
                 max_window_pos = idx_of_frag
