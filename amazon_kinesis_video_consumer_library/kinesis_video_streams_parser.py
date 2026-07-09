@@ -65,7 +65,8 @@ class StreamAcquisitionError(Exception):
 class KVSParser(Thread):
     def __init__(
         self,
-        kvs_stream_name: str,
+        kvs_stream_arn: str,
+        start_frag: str,
         consumer: KVSConsumer,
     ):
         # Call the Thread class's init function
@@ -75,10 +76,19 @@ class KVSParser(Thread):
         self._stop_get_media = False
 
         # Init the local vars.
-        self.kvs_stream_name = kvs_stream_name
+        match kvs_stream_arn.split('/'):
+            # Attempt at pulling stream name from arn, no biggie though
+            # it's only used for telemetry
+            case [_, stream_name, _]:
+                self.kvs_stream_name = stream_name
+            case _:
+                self.kvs_stream_name = kvs_stream_arn
         log.info("Initialising KVSParser...")
         self.consumer = consumer
-        self.kvs_streaming_buffer = self.__acquire_stream(kvs_stream_name)
+        self.kvs_streaming_buffer = self.__acquire_stream(
+            kvs_stream_arn=kvs_stream_arn,
+            start_frag=start_frag
+        )
 
         log.info("Loading EBMLlite MKV Schema....")
         self.schema = ebmlite.loadSchema("matroska.xml")
@@ -87,7 +97,11 @@ class KVSParser(Thread):
             raise KeyError("Could not find master element in Matroska schema")
         self.matroska_master_element_type = master
 
-    def __acquire_stream(self, kvs_stream_name: str) -> StreamingBody:
+    def __acquire_stream(
+            self,
+            kvs_stream_arn: str,
+            start_frag: str
+    ) -> StreamingBody:
         """Using the name of the Kinesis Video Stream, this function
         acquires a botocore.response.StreamingBody which can then stream
         the data out of KVS"""
@@ -97,7 +111,7 @@ class KVSParser(Thread):
 
         # Second, we need an endpoint for our specific stream
         get_data_endpoint_response = kvs_client.get_data_endpoint(
-            StreamName=kvs_stream_name,
+            StreamARN=kvs_stream_arn,
             APIName="GET_MEDIA"
         )
         get_media_endpoint = get_data_endpoint_response.get("DataEndpoint")
@@ -112,14 +126,17 @@ class KVSParser(Thread):
         # Fourth, we can initiate the streaming of data and pass back
         # the streaming body
         get_media_response_object = kvs_media_client.get_media(
-            StreamName=kvs_stream_name,
+            StreamARN=kvs_stream_arn,
             # TODO: start selector can't be earliest as quick end of one
             # TODO: ...chat and start of another can result in multiple
             # TODO: ...conversations being on one stream (i.e. stream
             # TODO: ...reuse). Must obey start fragment selector.
             # N.B. This could cause problems with over reading and
             # reading the next audio stream.
-            StartSelector={"StartSelectorType": "EARLIEST"}
+            StartSelector={
+                "StartSelectorType": "FRAGMENT_NUMBER",
+                "AfterFragmentNumber": start_frag,
+            }
         )
         match get_media_response_object:
             case {"Payload": streamer} if isinstance(streamer, StreamingBody):

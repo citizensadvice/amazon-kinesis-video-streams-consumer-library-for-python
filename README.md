@@ -52,12 +52,12 @@ uv sync
 
 ## making the call
 
-Everything is set up in the UAT environment. Call flow is `audio-stream-test` - this will trigger a Lambda `event-printer` which will print out the entire Lambda event, including the KVS stream ARN. This will need copying.  
+Everything is set up in the UAT environment. Call flow is `audio-stream-test` - this will trigger a Lambda `event-printer` which will print out the entire Lambda event, including the KVS stream ARN and the start fragment. You will need both of these pieces of information.  
 example arn: `arn:aws:kinesisvideo:eu-west-2:759942772963:stream/rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02/1660714770128`  
-the name only `rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02`  
+example start fragment number: `91343852333181675028929762615222463140535793063`
 Now you can call:
 ```sh
-uv run kvs_consumer_library_example.py rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02
+uv run kvs_consumer_library_example.py rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02 91343852333181675028929762615222463140535793063
 ```
 
 If you want to talk to someone, ensure they are on the routing profile `dave rp` and are available.

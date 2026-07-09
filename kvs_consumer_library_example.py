@@ -43,9 +43,15 @@ if not audio_path.is_dir():
 # Update the desired region and KVS stream name.
 REGION = "eu-west-2"
 try:
-    KVS_STREAM01_NAME = argv[1]  # Stream must be in specified region
+    KVS_STREAM_ARN = argv[1]  # Stream must be in specified region
 except IndexError:
-    log.error("No stream name specified!", exc_info=True)
+    log.error("No stream name specified!")
+    raise
+
+try:
+    START_FRAG = argv[2]
+except IndexError:
+    log.error("Must specify a start fragment!")
     raise
 
 
@@ -76,13 +82,14 @@ class KvsPythonConsumerExample:
     ####################################################
     # Main process loop
     def service_loop(self):
-        log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM01_NAME}........")
+        log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM_ARN}........")
         consumer = SliceConsumer(
             min_chunk_size_in_mb=1,
             max_chunk_size_in_mb=1.5,
         )
         my_stream01_consumer = KVSParser(
-            kvs_stream_name=KVS_STREAM01_NAME,
+            kvs_stream_arn=KVS_STREAM_ARN,
+            start_frag=START_FRAG,
             consumer=consumer
             # consumer=self
         )
@@ -142,7 +149,9 @@ class KvsPythonConsumerExample:
         self.stream_active = False
         # Here we just log the error
         print(
-            f"####### ERROR: Exception on read stream: {stream_name}\n####### Fragment Tags:\n{self.last_good_fragment_tags}\nError Message:{exc}"
+            f"####### ERROR: Exception on read stream: {stream_name}\n"
+            f"####### Fragment Tags:\n{self.last_good_fragment_tags}\n"
+            f"Error Message:{exc}"
         )
 
 
