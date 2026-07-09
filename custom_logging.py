@@ -48,7 +48,7 @@ _DEBUG_FILE_LOG_LEVEL = logging.DEBUG
 
 handlers: list[logging.Handler]
 
-config_message = "logger configured:\n"
+config_message = "logging output configured:\n"
 config_message += "logging will go to 2 output files\n"
 config_message += "console output - ".ljust(18) + f"{_FULL_CONSOLE_OUTPUT_FILE_PATH}\n"
 config_message += "debug output - ".ljust(18) + f"{_FULL_DEBUG_OUTPUT_FILE_PATH}\n"
@@ -102,8 +102,9 @@ def _get_handlers(
     create_debug_file_handler: bool = True,
 ) -> list[None | logging.Handler]:
     console_stream_handler, console_file_handler, debug_file_handler = None, None, None
+    console_output_formatter = _get_console_output_formatter()
+    debug_output_formatter = _get_debug_output_formatter()
     if create_console_stream_handler or create_console_file_handler:
-        console_output_formatter = _get_console_output_formatter()
         if create_console_stream_handler:
             console_stream_handler = _get_stream_handler(
                 level=_CONSOLE_LOG_LEVEL, formatter=console_output_formatter
@@ -116,9 +117,9 @@ def _get_handlers(
                 formatter=console_output_formatter,
             )
     if create_debug_file_handler:
-        debug_output_formatter = _get_debug_output_formatter()
         debug_file_handler = _get_file_handler(
-            level=_DEBUG_FILE_LOG_LEVEL,
+            # level=_DEBUG_FILE_LOG_LEVEL,
+            level=_CONSOLE_LOG_LEVEL,
             filename=_FULL_DEBUG_OUTPUT_FILE_PATH,
             mode="w",
             formatter=debug_output_formatter,
@@ -163,8 +164,8 @@ def get_output_directories() -> list[str]:
     return return_list
 
 
-def get_full_logger(name: str) -> logging.Logger:
-    logger: logging.Logger = logging.getLogger(name)
+def set_up_root_logger_output() -> logging.Logger:
+    logger: logging.Logger = logging.getLogger()
     logger.setLevel(level=logging.DEBUG)
     if not logger.hasHandlers():
         _set_up_logger(

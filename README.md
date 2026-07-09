@@ -1,86 +1,74 @@
-# Amazon Kinesis Video Streams Consumer Library For Python
+# Audio Stream Proof of Concept
 
-## Introduction
+## Origin
+This repo is a fork of the [AWS samples repo](https://github.com/aws-samples/amazon-kinesis-video-streams-consumer-library-for-python).
 
-The Amazon Kinesis Video Stream Consumer Library for Python reads in streaming bytes from Amazon 
-Kinesis Video Streams (KVS) made available via a KVS GetMedia or GetMediaForFragmentList API call response. 
-The library parses these raw bytes into individual MKV fragments and forwards to call-backs in the user’s application.
-
-Fragments are returned as raw bytes and a searchable DOM like structure by parsing with EMBLite by MideTechnology.
-
-In addition, the KvsFragementProcessor class provides the following functions for post-processing of parsed MKV fragments:
-1) get_fragment_tags(): Extract MKV tags from the fragment.
-2) save_fragment_as_local_mkv(): Saves the fragment as stand-alone MKV file on local disk.
-3) get_frames_as_ndarray(): Returns a selectable ratio of frames in the fragment as a list of NDArray objects.
-4) save_frames_as_jpeg(): Returns a selectable ratio of frames in the fragment as a JPEGs to local disk.
-5) save_connect_fragment_audio_track_from_customer_as_wav(), save_connect_fragment_audio_track_to_customer_as_wav(): Returns a WAV files with AUDIO_FROM_CUSTOMER and AUDIO_TO_CUSTOMER from frames produced by [Amazon Connect](https://docs.aws.amazon.com/connect/latest/adminguide/customer-voice-streams.html).
+The aim was to attempt to be able to provide an audio feed out of AWS Connect for consumption by a summarising LLM.
 
 
-## Getting started
+## Features
 
-A complete example of how to consume the Amazon Kinesis Video Stream Consumer Library for Python is provided in the 
-[kvs_consumer_library_example](kvs_consumer_library_example.py) module.
+### [Processor](./amazon_kinesis_video_consumer_library/kinesis_video_fragment_processor.py)
 
-### To deploy this example:
-1. Make sure you have an active stream running in KVS. The example takes fragments off the live edge of the stream so if 
-none are being received the consumer will gracefully exit. If you prefer to parse previous stored fragments, you will need to update the 
-StartSelector used in the kvs_consumer_library_example.
+The processor leverages EBMLite to parse the KVS stream. KVS stream consists of a bytestream which itself defines several back to back MKV files which themselves contain our audio in two separate channels. EBML is the language used to define MKV files and it meant to be read in its byte format ([read more about EBML](https://datatracker.ietf.org/doc/rfc8794/)).
 
-2. Clone and CD into this repository
+This processor provides tools to handle the MKV files once they've been pulled form the bytestream.
 
-3. Install Python Dependencies:
 
-4. Open the cloned repository with your favourite IDE 
+### [Parser](./amazon_kinesis_video_consumer_library/kinesis_video_streams_parser.py)
 
-5. In kvs_consumer_library_example.py, update the KVS stream parameters:  
-    a. REGION and  
-    b. KVS_STREAM01_NAME  
+The parser is based on the Python Thread class - enabling multithreading. Multithreading is handy but not necessary as multithreading allows shared memory space whilst freeing up the [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) when waiting on heavy IO bound operations such as fetching the next piece of the bytesream from MKV. The parser then uses callbacks to feed back the MKV fragments.
 
-6. Run the example code:
-```
-python3 kvs_consumer_library_example.py
+### [Consumer - protocol](./amazon_kinesis_video_consumer_library/kinesis_video_stream_consumer.py)
+
+The module defines a [protocol](https://typing.python.org/en/latest/spec/protocol.html) which specifies what callbacks are need in order to integrate with the parser class
+
+### [Slice Consumer](./audio_slice_consumer.py)
+
+Defines one such implementation of the Consumer protocol. This handles dispatching by writing to disk though this function is intended to be modified for dispatching to an SQS Queue and an S3 Bucket.
+
+### [example file](./kvs_consumer_library_example.py)
+
+This is the file to run when you want to listen in on a call as things currently stand in the PoC. Simply run a command like:
+
+```sh
+uv run kvs_consumer_library_example.py name-of-your-kvs-audio-stream
 ```
 
-This assumes default client authentication and so your host machine must have a valid AWS credentials file or receive temporary credentials by other means. 
-User IAM or temporary credentials must have AmazonKinesisVideoStreamsReadOnlyAccess or some per stream specific equivalent of these permissions. 
+# Running this for yourself
 
-Assuming authenticating is successful then the consumer library will be reading in the nominated KVS stream and returning parsed MKV fragments to the on_fragment_arrived() callback where a series of post-processing of the fragment and enclosed frames is completed.
+## env set up
+Firstly, you need your local Python set up.
 
-Check the on_fragment_arrived function and see the post processing features. The save MKV and save frames functions are commented out so you don't fill up too much disk but easy to uncomment to test these features as well.
+Ensure you have UV installed ([brew](https://brew.sh/) is a good choice of installer).  
+```sh
+brew install uv
+```
 
-## Summary Workflow
+Next setup Python:  
+```sh
+uv sync
+```
 
-1) Define a on_fragment_arrived() and on_read_stream_complete() and on_stream_read_exception() call-backs in user application logic.
-2) Initialize the KVS Media and / or Archive Media clients,
-3) Make a call to KVS Media GetMedia and / or KVS Archive Media GetMediaForFragmentList for the given stream,
-4) Initialize and run this KVS Consumer library thread providing the response from the GetMedia
-or GetMediaForFragmentList call,
-5) Fragments will then be parsed and delivered to the call-backs for processing as per the example code provided.
+## making the call
 
-## Timing and Async Considerations
+Everything is set up in the UAT environment. Call flow is `audio-stream-test` - this will trigger a Lambda `event-printer` which will print out the entire Lambda event, including the KVS stream ARN and the start fragment. You will need both of these pieces of information.  
+example arn: `arn:aws:kinesisvideo:eu-west-2:759942772963:stream/rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02/1660714770128`  
+example start fragment number: `91343852333181675028929762615222463140535793063`
+Now you can call:
+```sh
+uv run kvs_consumer_library_example.py rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02 91343852333181675028929762615222463140535793063
+```
 
-To keep the examples and base solution as simple as possible, the fragment processing library provided is threaded to 
-run outside of the main process but it returns received fragments to the main application process call-backs and isn't
-using any asynchronous programming techniques. Therefore, any processing time taken in the on_fragment_arrived() callback
-will be blocking for the KVS consumer library fragment processing function. If the processing takes longer (or close to) than the 
-fragment duration then the stream processing will slip behind the live edge of the media and introduce additional latency.  
+If you want to talk to someone, ensure they are on the routing profile `dave rp` and are available.
 
-If performing long or external blocking processes in the on_fragment_arrived() callback, it is the responsibility of the 
-developer to thread or develop async solutions to prevent extended blocking of the consumer library fragment processing. 
-
-## Security
-
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
-
-## License
-
-This library is licensed under the MIT-0 License. See the LICENSE file.
-
-## Credits:
-
-[EMBLite by MideTechnology](https://github.com/MideTechnology/ebmlite) is an external EBML parser used to decode the MKV fragents in this library.
-For convenance, a slightly modified version of EMBLite is shipped with the KvsConsumerLibrary but adding credit where its due.  
-EMBLite MIT License: https://github.com/MideTechnology/ebmlite/blob/development/LICENSE  
+Now all conversational snippets should make their way to the `dispatches/` directory as two separate audio streams.
 
 
+# How does it work?
 
+Audio is pulled off the KVS Stream live, each fragment is added to a buffer. Once the buffer fills to configured mx size the buffer is sliced somewhere between the configured min and max chunk size and that chunk is sent to dispatch.
+
+# Sample
+
+Sample audio from a live rip can be [found here](./the-dave-helpline/)
