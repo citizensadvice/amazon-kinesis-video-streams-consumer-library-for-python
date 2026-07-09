@@ -48,19 +48,18 @@ class SliceConsumer:
 
     def __init__(
             self,
-            min_chunk_length: int = 90,
-            max_chunk_length: int = 120,
+            min_chunk_size_in_mb: float = 90.0,
+            max_chunk_size_in_mb: float = 180.0,
     ):
-        """max length is maximum number of audio fragments to constitute
-        a audio chunk, min length is the minimum. It is important to
-        have a generous difference to allow as wide a window as possible
-        for detection of a quiet period."""
-        if min_chunk_length > max_chunk_length:
+        """min/max chunk size refers to dispatched audio chunks. It is
+        important to have a generous difference to allow as wide a
+        window as possible for detection of a quiet period."""
+        if min_chunk_size_in_mb > max_chunk_size_in_mb:
             raise ValueError("min chunk length must be less than max")
         self.to_client_fragments: list[AudioFragment] = []
         self.from_client_fragments: list[AudioFragment] = []
-        self.max_chunk_size = max_chunk_length
-        self.min_chunk_size = min_chunk_length
+        self.min_chunk_size_in_mb = min_chunk_size_in_mb
+        self.max_chunk_size_in_mb = max_chunk_size_in_mb
         self.processor = KvsFragmentProcessor()
 
     @staticmethod
@@ -101,7 +100,6 @@ class SliceConsumer:
             self.to_client_fragments
         )
         if to_client_chunk:
-            self.to_client_chunk_number += 1
             self.dispatch_chunk(to_client_chunk, "to-client")
 
         # ====================
@@ -115,7 +113,6 @@ class SliceConsumer:
             self.from_client_fragments
         )
         if from_client_chunk:
-            self.from_client_chunk_number += 1
             self.dispatch_chunk(from_client_chunk, "from-client")
 
     def on_stream_read_complete(
@@ -140,11 +137,9 @@ class SliceConsumer:
         """private method to flush remaining fragments into dispatch"""
         # Need to simply dispatch the last of the audio fragments that
         # weren't chunked up previously
-        self.to_client_chunk_number += 1
         self.dispatch_chunk(
             fragments=self.to_client_fragments,
             label="to-client")
-        self.from_client_chunk_number += 1
         self.dispatch_chunk(self.from_client_fragments, "from-client")
 
     def split_chunk(
@@ -154,27 +149,59 @@ class SliceConsumer:
         """splits large list of fragments into a chunk and the remaining
         fragments, the slice is based on the quietest period in the
         min/max chunk size window"""
-        chunk = None
-        buffer = fragments.copy()
-        if len(buffer) >= self.max_chunk_size:
-            # Assume last fragment is quietest
-            min_rms = buffer[-1].rms
-            min_rms_pos = len(buffer) - 1
-            # open up window in which we may make slice
-            slice_window = buffer[
-                self.min_chunk_size:    # start at min chunk size
-                self.max_chunk_size     # end at max chunk size
-            ]
-            # loop fragments in window
-            for frag_pos_in_window, frag in enumerate(slice_window):
-                if frag.rms < min_rms:
-                    min_rms = frag.rms
-                    min_rms_pos = self.min_chunk_size + frag_pos_in_window
+        # First double check if fragments are large enough to chunk
+        # if not, return no chunk and original fragments
+        if sum([frag.size_in_mb() for frag in fragments]) < self.max_chunk_size_in_mb:
+            return None, fragments
 
-            # Acquire what we want to write
-            chunk = buffer[:min_rms_pos]
-            # Remove what we want to write from buffer
-            buffer = buffer[min_rms_pos:]
+        # Here we chunk off some fragments, starting by making a copy
+        # for reasons of immutability of inputs
+        buffer = fragments.copy()
+        # Assume last fragment is quietest
+        min_rms = buffer[-1].rms
+        min_rms_pos = len(buffer) - 1
+
+        # open up window in which we may make slice
+
+        # calculate window positions
+        min_window_pos = None
+        max_window_pos = None
+        total_buffer_size_so_far = 0
+        for idx_of_frag, fragment in enumerate(buffer):
+            total_buffer_size_so_far += fragment.size_in_mb()
+            if (
+                total_buffer_size_so_far > self.min_chunk_size_in_mb
+                and min_window_pos is None
+            ):
+                min_window_pos = idx_of_frag
+            if (
+                total_buffer_size_so_far >= self.max_chunk_size_in_mb
+                and max_window_pos is None
+            ):
+                max_window_pos = idx_of_frag
+
+        # check window positions generated successfully
+        if (
+            min_window_pos is None
+            or max_window_pos is None
+        ):
+            # TODO: Obviously handle that cleaner, ideally no exception
+            raise Exception("Can't see out that window mate!!")
+
+        slice_window = buffer[
+            min_window_pos:    # start at min chunk size (inclusive)
+            max_window_pos     # end at max chunk size (exclusive)
+        ]
+        # loop fragments in window
+        for frag_pos_in_window, frag in enumerate(slice_window):
+            if frag.rms < min_rms:
+                min_rms = frag.rms
+                min_rms_pos = min_window_pos + frag_pos_in_window
+
+        # Acquire what we want to write
+        chunk = buffer[:min_rms_pos]
+        # Remove what we want to write from buffer
+        buffer = buffer[min_rms_pos:]
         return chunk, buffer
 
     def dispatch_chunk(
