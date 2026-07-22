@@ -38,10 +38,16 @@ except IndexError:
 
 def main():
     log.info(f"Starting KvsConsumerLibrary for stream: {KVS_STREAM_ARN}........")
+
+    # This object defines how audio fragments are handled
     consumer = SliceConsumer(
+        # These have defaults but can be manually edited here
         min_chunk_size_in_kb=500,
         max_chunk_size_in_kb=800,
     )
+
+    # This object handles the streaming and yielding of audio fragments
+    # from the kinesis stream
     my_stream01_consumer = KVSParser(
         kvs_stream_arn=KVS_STREAM_ARN,
         start_frag=START_FRAG,
@@ -54,8 +60,5 @@ def main():
 
 
 if __name__ == "__main__":
-    """
-    Main method for example KvsConsumerLibrary
-    """
     set_up_root_logger_output()
     main()
