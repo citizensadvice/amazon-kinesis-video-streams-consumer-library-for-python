@@ -57,11 +57,20 @@ example arn: `arn:aws:kinesisvideo:eu-west-2:759942772963:stream/rap-uat-voicema
 example start fragment number: `91343852333181675028929762615222463140535793063`
 Now you can call:
 ```sh
-uv run kvs_consumer_library_example.py rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02 91343852333181675028929762615222463140535793063
+uv run kvs_consumer_library_example.py {kvs_arn} {start_frag}
+...
+uv run kvs_consumer_library_example.py rn:aws:kinesisvideo:eu-west-2:759942772963:stream/rap-uat-voicemail-connect-rap-uat-connect-instance-ccaas-001-contact-fde1c9d7-df30-4b95-9833-22569c81aa02/1660714770128 91343852333181675028929762615222463140535793063
 ```
 
-If you want to talk to someone, ensure they are on the routing profile `dave rp` and are available.
+If you want to capture a live 2-way conversation:
+* Put yourself on the `dave rp` in the UAT Connect instance.
+* Make sure you are set to available
+* Have someone call `020 4642 5260`
+* Answer the call
 
+If you don't have an available partner, you can just call `020 4642 5260`. If no one is available the IVR leads you to pseudo voicemail service.
+
+The Contact Flow associated with `020 4642 5260` triggers a Lambda called `event-printer`. This logs all the details you'll need to invoke the streaming script as described above.  
 Now all conversational snippets should make their way to the `dispatches/` directory as two separate audio streams.
 
 
